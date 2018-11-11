@@ -67,7 +67,7 @@
                 })
                 .catch(function (e) {
                     var eargs = m.parseQueryString(args);
-                    eargs.err = e;
+                    eargs.err = state.route.path+'?'+state.route.argspath;
                     m.route.set('/404', eargs);
                 });
         },
@@ -517,7 +517,7 @@
                     })
                     .catch(function (e) {
                         var eargs = m.parseQueryString(args);
-                        eargs.err = e;
+                        eargs.err = state.route.path+'?'+state.route.argspath;
                         m.route.set('/404', eargs);
                     });
             },
@@ -550,7 +550,7 @@
                 })
                     .catch(function (e) {
                         var eargs = m.parseQueryString(args);
-                        eargs.err = e;
+                        eargs.err = state.route.path+'?'+state.route.argspath;
                         m.route.set('/404', eargs);
                     });
             },
@@ -665,7 +665,13 @@
             },
         },
         not_found: {
-            view: function () { return ''; },
+            view: function () {
+              var badroute = state.route.args.err;
+              if (!badroute) {
+                badroute = state.route.path;
+              }
+              return m('p', 'No route found for '+badroute);
+            },
         },
     };
 
