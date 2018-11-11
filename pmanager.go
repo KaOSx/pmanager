@@ -7,12 +7,14 @@ import (
 	"pmanager/cmd/flag"
 	"pmanager/cmd/mirror"
 	"pmanager/cmd/repositories"
+	"pmanager/cmd/updateall"
 	"pmanager/conf"
 )
 
 var actions = map[string]func([]string){
 	"update-repos":   repositories.Update,
 	"update-mirrors": mirror.Update,
+	"update-all":     updateall.Update,
 	"serve":          api.Serve,
 	"flag":           flag.Exec,
 }
@@ -25,6 +27,9 @@ Available subcommands:
 
   update-mirrors
     update the mirrors database
+
+  update-all
+    do update-repos and update-mirrors together
 
   serve
     Launch the API webserver

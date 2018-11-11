@@ -46,5 +46,6 @@ Configuration variables :
 
 * update-repos [<args…>] : update the packages repositories database. If args are used (name of a repo), just update the asked repos
 * update-mirrors : update the mirrors status database
+* update-all : update repos & mirrors
 * serve : launch the webserver API (needed for the frontend)
 * flag : launch an interactive prompt to manage the flagged packages
