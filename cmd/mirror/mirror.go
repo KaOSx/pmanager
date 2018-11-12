@@ -157,9 +157,24 @@ func Update([]string) {
 	if !has_build {
 		repos = append([]string{"build"}, repos...)
 	}
+	if conf.ReadBool("main.debug") {
+		util.Println("Found repos:")
+		for _, r := range repos {
+			util.Println(" -", r)
+		}
+	}
 	mirrors, err := getMirrorFromFile(repos)
 	if err != nil {
 		util.Fatalln(err)
+	}
+	if conf.ReadBool("main.debug") {
+		util.Println("Found mirrors:")
+		for _, c := range mirrors {
+			util.Println(" *", c.Name)
+			for _, m := range c.Mirrors {
+				util.Println("    →", m.Name)
+			}
+		}
 	}
 	hash := make(map[string][]string)
 	l := len(repos)
