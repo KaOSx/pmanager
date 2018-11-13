@@ -21,6 +21,10 @@ func fileName(pkgname, pkgver, arch string) string {
 func dbpath() string   { return path.Join(conf.Basedir(), conf.Read("database.subdir")) }
 func repopath() string { return path.Join(dbpath(), "repo") }
 func ext() string      { return "." + conf.Read("database.extension") }
+func mkdir(fp string) error {
+	dir := path.Dir(fp)
+	return os.MkdirAll(dir, 0755)
+}
 
 var flags *Flaglist
 var gits *Gitlist
@@ -64,6 +68,12 @@ func StoreFlags() error {
 		return nil
 	}
 	fpath := path.Join(dbpath(), "flag"+ext())
+	if conf.Debug() {
+		util.Println("Saving flag in", fpath)
+	}
+	if err := mkdir(fpath); err != nil {
+		return err
+	}
 	f, err := os.Create(fpath)
 	if err != nil {
 		return err
@@ -143,6 +153,12 @@ func StoreRepo(name string) error {
 		return nil
 	}
 	rpath := path.Join(repopath(), name+ext())
+	if conf.Debug() {
+		util.Println("Saving", name, "in", rpath)
+	}
+	if err := mkdir(rpath); err != nil {
+		return err
+	}
 	f, err := os.Create(rpath)
 	if err != nil {
 		return err
@@ -215,6 +231,12 @@ func StoreGits() error {
 		return nil
 	}
 	gpath := path.Join(dbpath(), "git"+ext())
+	if conf.Debug() {
+		util.Println("Saving git in", gpath)
+	}
+	if err := mkdir(gpath); err != nil {
+		return err
+	}
 	f, err := os.Create(gpath)
 	if err != nil {
 		return err
@@ -260,6 +282,12 @@ func StoreMirrors() error {
 		return nil
 	}
 	fpath := path.Join(dbpath(), "mirror"+ext())
+	if err := mkdir(fpath); err != nil {
+		return err
+	}
+	if conf.Debug() {
+		util.Println("Saving mirror in", fpath)
+	}
 	f, err := os.Create(fpath)
 	if err != nil {
 		return err
