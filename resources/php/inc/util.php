@@ -58,7 +58,7 @@ function setSortLink($field, $args)
     }
     $cargs['sortby']  = $field;
     $cargs['sortdir'] = $sortdir;
-    return '/packages.php?'.http_build_query($cargs);
+    return 'packages.php?'.http_build_query($cargs);
 }
 
 function setPageLink($page, $args)
@@ -68,7 +68,7 @@ function setPageLink($page, $args)
         $cargs[$k] = $v;
     }
     $cargs['page'] = $page;
-    return '/packages.php?'.http_build_query($cargs);
+    return 'packages.php?'.http_build_query($cargs);
 }
 
 function renderPagination($currentPage, $lastPage, $args)
