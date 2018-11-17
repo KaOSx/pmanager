@@ -441,6 +441,7 @@ a.text-fa:hover {
 
 /* Link in button style
 ------------------------------------------------------------- */
+/*
 a.btn {
 	background-color: #38bdff;
 	padding: 5px 10px;
@@ -450,4 +451,23 @@ a.btn {
 a.btn:hover {
 	color: #fff;
 	background-color: #38bdff;
+}
+*/
+a.btn {
+    color: #000;
+    text-align:center;
+    background-color: #31A3DD;
+    /* don't use absolute unit */
+    padding: 0.5em 1.5em;
+    margin-left: 0.5em;
+    /* round corners like table head */
+    border-radius: 2px;
+    /* use "flat" buttons */
+    border: none;
+}
+
+a.btn:hover {
+    color: #fff;
+    text-decoration: none;
+    background-color: #31A3DD;
 }
