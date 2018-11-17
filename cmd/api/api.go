@@ -32,11 +32,14 @@ func sendFormSpree(f *db.Flag) {
 		strings.Replace(f.Comment, "\n", "\r\n", -1),
 	}
 	strbody := strings.Join(body, "\n")
-	http.PostForm("https://formspree.io/"+conf.Read("smtp.send_to"), url.Values{
+	_, err := http.PostForm("https://formspree.io/"+conf.Read("smtp.send_to"), url.Values{
 		"email":   {f.Email},
 		"subject": {subject},
 		"message": {strbody},
 	})
+	if conf.Debug() && err != nil {
+		util.Println(err)
+	}
 }
 
 func sendMail(f *db.Flag) {
