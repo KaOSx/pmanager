@@ -21,7 +21,7 @@ func sendFormSpree(f *db.Flag) {
 	pname := f.CompleteName()
 	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
 	body := []string{
-		fmt.Sprintf("Package details: %s#!/package/%s/%s", conf.Read("main.viewurl"), f.Repository, pname),
+		fmt.Sprintf("Package details: %s/view.php?repo=%s&name=%s", conf.Read("main.viewurl"), f.Repository, pname),
 		"",
 		"",
 		"---",
@@ -53,7 +53,7 @@ func sendMail(f *db.Flag) {
 	pname := f.CompleteName()
 	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
 	body := []string{
-		fmt.Sprintf("Package details: %s#!/package/%s/%s", conf.Read("main.viewurl"), f.Repository, pname),
+		fmt.Sprintf("Package details: %s/view.php?repo=%s&name=%s", conf.Read("main.viewurl"), f.Repository, pname),
 		"",
 		"",
 		"---",

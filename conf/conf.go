@@ -13,7 +13,7 @@ const (
 )
 
 var config = Map{
-	"main.viewurl":         "https://kaosx.us/packages.html",
+	"main.viewurl":         "https://kaosx.us/packages",
 	"main.repourl":         "http://kaosx.tk/repo/",
 	"main.giturl":          "https://github.com/KaOSx/",
 	"main.debug":           true,
