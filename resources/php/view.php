@@ -13,9 +13,11 @@ function render()
         'repo' => $repo,
         'name' => $name,
     ]);
-    if (!$result) {
+    if ($result === false || !isset($result['data'])) {
         echo 'Package “'.$repo.'/'.$name.'” not found.';
     }
+    $package = $result['data'];
+    include __DIR__.'/tpl/packageview.php';
 };
 
 include __DIR__.'/tpl/page.php';
