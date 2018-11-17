@@ -15,6 +15,7 @@ function render()
     ]);
     if ($result === false || !isset($result['data'])) {
         echo 'Package “'.$repo.'/'.$name.'” not found.';
+        return;
     }
     $package = $result['data'];
     include __DIR__.'/tpl/packageview.php';
