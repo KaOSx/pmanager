@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"pmanager/conf"
@@ -15,6 +16,28 @@ import (
 	"strings"
 	"time"
 )
+
+func sendFormSpree(f *db.Flag) {
+	pname := f.CompleteName()
+	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
+	body := []string{
+		fmt.Sprintf("Package details: %s#!/package/%s/%s", conf.Read("main.viewurl"), f.Repository, pname),
+		"",
+		"",
+		"---",
+		fmt.Sprintf("The package %s has been flagged as outdated.", pname),
+		"by: " + f.Email,
+		"",
+		"Additional informations:",
+		strings.Replace(f.Comment, "\n", "\r\n", -1),
+	}
+	strbody := strings.Join(body, "\n")
+	http.PostForm("https://formspree.io/"+conf.Read("smtp.send_to"), url.Values{
+		"email":   {f.Email},
+		"subject": {subject},
+		"message": {strbody},
+	})
+}
 
 func sendMail(f *db.Flag) {
 	server := mail.Server{
@@ -228,7 +251,11 @@ func flagAdd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sendMail(&f)
+		if conf.ReadBool("smtp.use_formspree") {
+			sendFormSpree(&f)
+		} else {
+			sendMail(&f)
+		}
 	}
 	writeResponse(w, conf.Map{
 		"data": f,

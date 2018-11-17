@@ -32,6 +32,7 @@ var config = Map{
 	"smtp.password":        "my_password",
 	"smtp.send_to":         "user@example.com",
 	"smtp.send_from":       "user@example.com",
+	"smtp.use_formspree":   false,
 	"mirror.main_mirror":   "http://kaosx.tk/repo/",
 	"mirror.mirrorlist":    "/etc/pacman.d/mirrorlist",
 	"mirror.pacmanconf":    "/etc/pacman.conf",
