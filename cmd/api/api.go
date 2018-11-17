@@ -36,6 +36,7 @@ func sendFormSpree(f *db.Flag) {
 		"email":   {f.Email},
 		"subject": {subject},
 		"message": {strbody},
+		"submit":  {"Send"},
 	})
 	if conf.Debug() && err != nil {
 		util.Println(err)
