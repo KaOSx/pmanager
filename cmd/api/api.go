@@ -3,10 +3,10 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"pmanager/conf"
@@ -29,18 +29,30 @@ func sendFormSpree(f *db.Flag) {
 		"by: " + f.Email,
 		"",
 		"Additional informations:",
-		strings.Replace(f.Comment, "\n", "\r\n", -1),
+		f.Comment,
 	}
 	strbody := strings.Join(body, "\n")
-	resp, err := http.PostForm("https://formspree.io/"+conf.Read("smtp.send_to"), url.Values{
-		"email":   {f.Email},
-		"subject": {subject},
-		"message": {strbody},
-		"submit":  {"Send"},
+	data := new(bytes.Buffer)
+	encoder := json.NewEncoder(data)
+	encoder.Encode(map[string]interface{}{
+		"email":    f.Email,
+		"_subject": subject,
+		"message":  strbody,
 	})
+	var client http.Client
+	request, err := http.NewRequest("POST", "https://formspree.io/"+conf.Read("smtp.send_to"), data)
+	if err != nil {
+		if conf.Debug() {
+			util.Println("Request error:", err)
+		}
+		return
+	}
+	request.Header.Add("Referer", conf.Read("main.viewurl"))
+	request.Header.Add("Content-Type", "application/json")
+	resp, err := client.Do(request)
 	defer resp.Body.Close()
 	if conf.Debug() && err != nil {
-		util.Println(err)
+		util.Println("Response error:", err)
 	}
 }
 
