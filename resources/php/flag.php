@@ -25,8 +25,8 @@ function render()
         $email   = (isset($_POST['email'])) ? $_POST['email'] : false;
         $comment = (isset($_POST['comment'])) ? $_POST['comment'] : false;
         if (!$package['Flagged'] && $email && $comment) {
-            $comment = str_replace('<br>', '\n', $comment);
-            $comment = str_replace('\r\n', '\n', $comment);
+            $comment = str_replace('<br>', "\n", $comment);
+            $comment = str_replace("\r\n", "\n", $comment);
             $comment = preg_replace('/<[^>]*>/', '', $comment);
             execRequest('/flag/add', [
                 'repo'    => $repo,
