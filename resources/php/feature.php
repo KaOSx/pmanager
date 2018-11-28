@@ -31,11 +31,14 @@ $packages = $result['data'];
         <script src="https://use.fontawesome.com/cbedfa5cad.js"></script>
         
         <style>            
+            body {
+                font: 85% "Open Sans", sans-serif;
+                background: #fbfbfe;
+            }
             div {
                 margin-left: auto;
                 margin-right: auto;
                 width: 98%;
-                font: 85% "Open Sans", sans-serif;
             }
             span { 
                 display: block;
