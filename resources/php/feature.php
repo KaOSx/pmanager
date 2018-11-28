@@ -22,9 +22,6 @@ $packages = $result['data'];
     <head>
 
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        
-        <link rel="stylesheet" href="assets/css/main.css" />
-        <link rel="stylesheet" href="assets/css/bootstrap.css" />
 
         <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Raleway:400,700" rel="stylesheet">
         
