@@ -5,6 +5,7 @@ import (
 	"os"
 	"pmanager/cmd/api"
 	"pmanager/cmd/flag"
+	"pmanager/cmd/mailtest"
 	"pmanager/cmd/mirror"
 	"pmanager/cmd/repositories"
 	"pmanager/cmd/updateall"
@@ -17,6 +18,7 @@ var actions = map[string]func([]string){
 	"update-all":     updateall.Update,
 	"serve":          api.Serve,
 	"flag":           flag.Exec,
+	"test-mail":      mailtest.SendMail,
 }
 
 const help = `
@@ -36,6 +38,9 @@ Available subcommands:
 
   flag
     Launch the prompt to manage the flags
+
+  test-mail
+    Try to send mail from reading configuration
 
 Available Routes:
 
