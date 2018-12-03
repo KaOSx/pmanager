@@ -9,5 +9,5 @@ $repolist = [
 ];
 
 define('APIURL', 'http://localhost:9000');
-define('REPOURL', 'https://kaosx.tk/repo/');
+define('REPOURL', 'http://kaosx.tk/repo/');
 define('INCPAGES', 5);
