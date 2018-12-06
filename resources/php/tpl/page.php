@@ -16,7 +16,7 @@
     <div id="page">
         <div id="header_wrap">
             <h1 class="Header-brand">
-                <a href="http://kaosx.us"><img src="fla_logo.png" width="130"></a>
+                <a href="http://kaosx.us"><img src="../img/fla_logo.png" width="130"></a>
             </h1>
             <div id="menu">
                 <ul>
@@ -51,7 +51,7 @@
             <a href="https://kaosx.us/bugs">Bugs</a>
             <a href="http://kaos-community-packages.github.io/">KCP</a>
             <a href="http://forum.kaosx.us/">Forum</a>
-            Copyright © 2013-2018 KaOS
+            Copyright © 2013-<?php echo date('Y'); ?> KaOS
         </div>
     </div>
 </body>

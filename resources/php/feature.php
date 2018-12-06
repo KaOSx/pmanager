@@ -22,7 +22,6 @@ $packages = $result['data'];
     <head>
 
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-
         <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Raleway:400,700" rel="stylesheet">
         
         <script src="https://use.fontawesome.com/cbedfa5cad.js"></script>
@@ -78,12 +77,15 @@ $packages = $result['data'];
             <h3><a target=_blank title="View the Build Repository in descending order" href=https://kaosx.us/packages/packages.php?sortby=date&sortdir=desc&repo=build><i class="fa fa-external-link"></i> Full List</a></h3>
 
             <?php foreach ($packages as $package): ?>
+
             <span>
-                <a href="view.php?repo=<?php echo $package['Repository']; ?>&name=<?php echo $package['CompleteName']; ?>"><i class="fa fa-camera"></i> <?php echo $package['CompleteName']; ?>
+                <a href="view.php?repo=<?php echo $package['Repository']; ?>&name=<?php echo $package['CompleteName']; ?>" target="blank"><i class="fa fa-camera"></i> <?php echo $package['CompleteName']; ?>
                 <span class="b"><?php echo date('D H:i', strtotime($package['BuildDate'])); ?></span>
                 </a>
             </span>
+            
             <?php endforeach; ?>
+            
         </div>
     </body>
 </html>
