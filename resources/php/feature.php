@@ -2,7 +2,7 @@
 
 include __DIR__.'/inc/vars.php';
 include __DIR__.'/inc/util.php';
-$sd = '/package/list';
+$sd = '/repo/list';
 $args = [
     'repo'    => 'build',
     'sortby'  => 'date',
