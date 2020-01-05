@@ -69,6 +69,8 @@ func scanDesc(sc *bufio.Scanner, p *db.Package) {
 			p.Md5Sum = line
 		case "SHA256SUM":
 			p.Sha256Sum = line
+		case "FILENAME":
+			p.Filename = line
 		}
 	}
 }

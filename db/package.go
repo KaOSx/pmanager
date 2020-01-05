@@ -23,6 +23,7 @@ type Package struct {
 	Files         []string
 	Md5Sum        string
 	Sha256Sum     string
+	Filename      string
 }
 
 type Packagelist []*Package
@@ -36,7 +37,10 @@ func (p *Package) RepoName() string {
 }
 
 func (p *Package) FileName() string {
-	return fileName(p.Name, p.Version, p.Arch)
+	if p.Filename == "" {
+		return fileName(p.Name, p.Version, p.Arch)
+	}
+	return p.Filename
 }
 
 func (p *Package) IsFlagged() bool {
