@@ -5,11 +5,14 @@ import (
 	"compress/gzip"
 	"io"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/xi2/xz"
 )
 
 func ReadXZ(r io.Reader) (*xz.Reader, error) { return xz.NewReader(r, 0) }
 
 func ReadGZ(r io.Reader) (*gzip.Reader, error) { return gzip.NewReader(r) }
+
+func ReadZST(r io.Reader) (*zstd.Decoder, error) { return zstd.NewReader(r) }
 
 func ReadTAR(r io.Reader) *tar.Reader { return tar.NewReader(r) }
