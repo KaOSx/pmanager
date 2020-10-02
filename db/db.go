@@ -15,6 +15,7 @@ func repoName(pkgname, pkgver, repo string) string {
 	return fmt.Sprintf("%s/%s", repo, completeName(pkgname, pkgver))
 }
 func fileName(pkgname, pkgver, arch string) string {
+	//@TODO modify for tar.zst in 2022
 	return fmt.Sprintf("%s-%s.pkg.tar.xz", completeName(pkgname, pkgver), arch)
 }
 

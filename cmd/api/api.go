@@ -524,6 +524,63 @@ func mirrorList(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, mirrors)
 }
 
+func loadAll(w http.ResponseWriter, r *http.Request) {
+	rnames := db.GetRepoNames()
+	gits := db.LoadGits(true)
+	repos := make([]conf.Map, len(rnames))
+	for i, n := range rnames {
+		repo := db.LoadRepo(n, true)
+		r := conf.Map{
+			"repository_name": n,
+			"num_package":     repo.Len(),
+		}
+		packages := conf.Map{}
+		var lastUpdate time.Time
+		for _, p := range *repo {
+			g := p.GetGit()
+			if g == nil {
+				g = getGit(p)
+				if g.Repository != "" && g.Folder != "" {
+					g.Name = p.Name
+					gits.Add(g)
+					if err := db.StoreGits(); err != nil && conf.Debug() {
+						util.Println("\033[1;31mFailed to store git database\033[m")
+					}
+				}
+			}
+			gurl := conf.Read("main.giturl") + g.Repository
+			packages[p.Name] = conf.Map{
+				"version":    p.Version,
+				"summary":    p.Description,
+				"maintainer": "Anke Boersma <demm@kaosx.us>",
+				"licenses":   p.Licenses,
+				"homepages": conf.Map{
+					"upstream": p.URL,
+					"bugs":     gurl + "/issues/",
+					"sources":  gurl + "/tree/master/" + g.Folder,
+					"PKGBUILD": gurl + "/blob/master/" + g.Folder + "/PKGBUILD",
+					"commits":  gurl + "/commits/master/" + g.Folder + "/PKGBUILD",
+				},
+				"download":          conf.Read("main.repourl") + p.Repository + "/" + p.FileName(),
+				"categories":        p.Groups,
+				"arch":              p.Arch,
+				"package_size":      util.FormatSize(p.PackageSize),
+				"package_installed": util.FormatSize(p.InstalledSize),
+				"depends":           p.Depends,
+				"make_depends":      p.MakeDepends,
+				"opt_depends":       p.OptDepends,
+				"build_date":        p.BuildDate,
+			}
+			if p.BuildDate.After(lastUpdate) {
+				lastUpdate = p.BuildDate
+			}
+		}
+		r["last_update"] = lastUpdate
+		repos[i] = r
+	}
+	writeResponse(w, repos)
+}
+
 func Serve([]string) {
 	port := ":" + conf.Read("api.port")
 	http.HandleFunc("/flag/list", flagList)
@@ -532,6 +589,7 @@ func Serve([]string) {
 	http.HandleFunc("/package/view", packageView)
 	http.HandleFunc("/repo/list", repoList)
 	http.HandleFunc("/mirror", mirrorList)
+	http.HandleFunc("/all", loadAll)
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		util.Fatalln(err)
