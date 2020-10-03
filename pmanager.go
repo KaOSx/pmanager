@@ -89,6 +89,8 @@ Available Routes:
     limit=<max number of result> (default: defined in configuration, parameter pagination of section [api])
 
   /mirror
+
+  /all
 `
 
 func printUsage() {
