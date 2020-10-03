@@ -575,6 +575,7 @@ func loadAll(w http.ResponseWriter, r *http.Request) {
 				lastUpdate = p.BuildDate
 			}
 		}
+		r["packages"] = packages
 		r["last_update"] = lastUpdate
 		repos[i] = r
 	}
