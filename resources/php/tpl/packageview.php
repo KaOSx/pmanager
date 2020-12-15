@@ -78,7 +78,7 @@
             <td>Build date: <?php echo $package['BuildDate']; ?></td>
         </tr>
         <tr>
-            <td>Packages groups: [<?php echo implode(' ', $package['Groups']); ?>]</td>
+            <td>Packages groups: [<?php echo (is_array($package['Groups'] ? implode(' ', $package['Groups']) : ''); ?>]</td>
         </tr>
         <tr><td></td></tr><tr><td></td></tr>
         <tr>
