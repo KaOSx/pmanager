@@ -8,6 +8,7 @@ import (
 	"pmanager/conf"
 	"pmanager/util"
 	"strings"
+	"sync"
 )
 
 func completeName(pkgname, pkgver string) string { return fmt.Sprintf("%s-%s", pkgname, pkgver) }
@@ -32,7 +33,13 @@ var gits *Gitlist
 var repos map[string]*Packagelist
 var mirrors *CountryList
 
+var lockers = struct {
+	flag, git, repo, mirror sync.Mutex
+}{}
+
 func LoadFlags(force ...bool) *Flaglist {
+	lockers.flag.Lock()
+	defer lockers.flag.Unlock()
 	if len(force) == 1 && force[0] {
 		flags = nil
 	}
@@ -59,9 +66,15 @@ func LoadFlags(force ...bool) *Flaglist {
 	return flags
 }
 
-func SetFlags(fl *Flaglist) { flags = fl }
+func SetFlags(fl *Flaglist) {
+	lockers.flag.Lock()
+	defer lockers.flag.Unlock()
+	flags = fl
+}
 
 func StoreFlags() error {
+	lockers.flag.Lock()
+	defer lockers.flag.Unlock()
 	if flags == nil {
 		if conf.Debug() {
 			util.Println("No flags to store")
@@ -102,6 +115,8 @@ func GetRepoNames() (names []string) {
 }
 
 func LoadRepo(name string, force ...bool) *Packagelist {
+	lockers.repo.Lock()
+	defer lockers.repo.Unlock()
 	if repos != nil && len(force) == 1 && force[0] {
 		delete(repos, name)
 	}
@@ -133,6 +148,8 @@ func LoadRepo(name string, force ...bool) *Packagelist {
 }
 
 func SetRepo(name string, pl *Packagelist) {
+	lockers.repo.Lock()
+	defer lockers.repo.Unlock()
 	if repos == nil {
 		repos = make(map[string]*Packagelist)
 	}
@@ -140,6 +157,8 @@ func SetRepo(name string, pl *Packagelist) {
 }
 
 func StoreRepo(name string) error {
+	lockers.repo.Lock()
+	defer lockers.repo.Unlock()
 	if repos == nil {
 		if conf.Debug() {
 			util.Printf("No repo [%s] to store\n", name)
@@ -169,6 +188,8 @@ func StoreRepo(name string) error {
 }
 
 func LoadPackages(force ...bool) *Packagelist {
+	lockers.repo.Lock()
+	defer lockers.repo.Unlock()
 	if len(force) == 1 && force[0] {
 		repos = nil
 	}
@@ -181,6 +202,8 @@ func LoadPackages(force ...bool) *Packagelist {
 }
 
 func StorePackages() (out []error) {
+	lockers.repo.Lock()
+	defer lockers.repo.Unlock()
 	if repos == nil {
 		if conf.Debug() {
 			util.Println("No repos to store")
@@ -196,6 +219,8 @@ func StorePackages() (out []error) {
 }
 
 func LoadGits(force ...bool) *Gitlist {
+	lockers.git.Lock()
+	defer lockers.git.Unlock()
 	if len(force) == 1 && force[0] {
 		gits = nil
 	}
@@ -222,9 +247,15 @@ func LoadGits(force ...bool) *Gitlist {
 	return gits
 }
 
-func SetGits(gl *Gitlist) { gits = gl }
+func SetGits(gl *Gitlist) {
+	lockers.git.Lock()
+	defer lockers.git.Unlock()
+	gits = gl
+}
 
 func StoreGits() error {
+	lockers.git.Lock()
+	defer lockers.git.Unlock()
 	if gits == nil {
 		if conf.Debug() {
 			util.Println("No gits to store")
@@ -247,6 +278,8 @@ func StoreGits() error {
 }
 
 func LoadMirrors(force ...bool) *CountryList {
+	lockers.mirror.Lock()
+	defer lockers.mirror.Unlock()
 	if len(force) == 1 && force[0] {
 		mirrors = nil
 	}
@@ -273,9 +306,15 @@ func LoadMirrors(force ...bool) *CountryList {
 	return mirrors
 }
 
-func SetMirrors(cl *CountryList) { mirrors = cl }
+func SetMirrors(cl *CountryList) {
+	lockers.mirror.Lock()
+	defer lockers.mirror.Unlock()
+	mirrors = cl
+}
 
 func StoreMirrors() error {
+	lockers.mirror.Lock()
+	defer lockers.mirror.Unlock()
 	if mirrors == nil {
 		if conf.Debug() {
 			util.Println("No mirrors to store")
