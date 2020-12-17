@@ -145,13 +145,16 @@ func writeResponse(w http.ResponseWriter, data interface{}, codes ...int) {
 	if len(codes) == 1 {
 		code = codes[0]
 	}
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
-	w.Header().Add("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers")
 	b := util.JSON(data)
-	w.Write(b)
-	w.WriteHeader(code)
+	if _, err := w.Write(b); err == nil {
+		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
+		w.Header().Add("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers")
+		w.WriteHeader(code)
+	} else if conf.Debug() {
+		util.Println("Response error:", err)
+	}
 }
 
 func getString(r *http.Request, key string) string  { return r.FormValue(key) }
