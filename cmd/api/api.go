@@ -17,6 +17,24 @@ import (
 	"time"
 )
 
+func loadDB(name string) {
+	switch name {
+	case "flag":
+		db.LoadFlags(true)
+	case "mirror":
+		db.LoadMirrors(true)
+	case "package":
+		db.LoadPackages(true)
+	case "git":
+		db.LoadGits(true)
+	case "all":
+		db.LoadFlags(true)
+		db.LoadMirrors(true)
+		db.LoadPackages(true)
+		db.LoadGits(true)
+	}
+}
+
 func sendFormSpree(f *db.Flag) {
 	pname := f.CompleteName()
 	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
@@ -194,7 +212,7 @@ func sort(r *http.Request) (sorted conf.Map) {
 }
 
 func flagList(w http.ResponseWriter, r *http.Request) {
-	flags := db.LoadFlags(true)
+	flags := db.LoadFlags()
 	filters := make(conf.Map)
 	var funcs []func(*db.Flag) bool
 	if e := getString(r, "search"); e != "" {
@@ -266,7 +284,7 @@ func flagList(w http.ResponseWriter, r *http.Request) {
 }
 
 func flagAdd(w http.ResponseWriter, r *http.Request) {
-	flags := db.LoadFlags(true)
+	flags := db.LoadFlags()
 	f := db.Flag{
 		Name:       getString(r, "name"),
 		Version:    getString(r, "version"),
@@ -294,7 +312,7 @@ func flagAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func packageList(w http.ResponseWriter, r *http.Request) {
-	packages := db.LoadPackages(true)
+	packages := db.LoadPackages()
 	filters := make(conf.Map)
 	var funcs []func(*db.Package) bool
 	exact := getBool(r, "exact")
@@ -323,7 +341,7 @@ func packageList(w http.ResponseWriter, r *http.Request) {
 	if getString(r, "flagged") != "" {
 		e := getBool(r, "flagged")
 		flagged = true
-		db.LoadFlags(true)
+		db.LoadFlags()
 		filters["flagged"] = e
 		funcs = append(funcs, func(p *db.Package) bool {
 			return p.IsFlagged() == e
@@ -344,7 +362,7 @@ func packageList(w http.ResponseWriter, r *http.Request) {
 			cmp = func(p1, p2 *db.Package) int { return util.CompareDate(p1.BuildDate, p2.BuildDate) }
 		case "flagged":
 			if !flagged {
-				db.LoadFlags(true)
+				db.LoadFlags()
 			}
 			cmp = func(p1, p2 *db.Package) int { return util.CompareBool(p1.IsFlagged(), p2.IsFlagged()) }
 		}
@@ -390,13 +408,13 @@ func packageView(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
-	packages := db.LoadRepo(repo, true).Filter(func(p *db.Package) bool { return p.CompleteName() == pkgname })
+	packages := db.LoadRepo(repo).Filter(func(p *db.Package) bool { return p.CompleteName() == pkgname })
 	if len(*packages) == 0 {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
 	p := (*packages)[0]
-	gits := db.LoadGits(true)
+	gits := db.LoadGits()
 	g := p.GetGit()
 	if g == nil {
 		g = getGit(p)
@@ -408,7 +426,7 @@ func packageView(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	db.LoadFlags(true)
+	db.LoadFlags()
 	data := util.ToMap(p)
 	gurl := conf.Read("main.giturl") + g.Repository
 	data["Flagged"] = p.IsFlagged()
@@ -434,7 +452,7 @@ func repoList(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
-	packages := db.LoadRepo(rname, true)
+	packages := db.LoadRepo(rname)
 	if len(*packages) == 0 {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
@@ -467,7 +485,7 @@ func repoList(w http.ResponseWriter, r *http.Request) {
 	if getString(r, "flagged") != "" {
 		e := getBool(r, "flagged")
 		flagged = true
-		db.LoadFlags(true)
+		db.LoadFlags()
 		filters["flagged"] = e
 		funcs = append(funcs, func(p *db.Package) bool {
 			return p.IsFlagged() == e
@@ -486,7 +504,7 @@ func repoList(w http.ResponseWriter, r *http.Request) {
 			cmp = func(p1, p2 *db.Package) int { return util.CompareDate(p1.BuildDate, p2.BuildDate) }
 		case "flagged":
 			if !flagged {
-				db.LoadFlags(true)
+				db.LoadFlags()
 			}
 			cmp = func(p1, p2 *db.Package) int { return util.CompareBool(p1.IsFlagged(), p2.IsFlagged()) }
 		}
@@ -526,16 +544,16 @@ func repoList(w http.ResponseWriter, r *http.Request) {
 }
 
 func mirrorList(w http.ResponseWriter, r *http.Request) {
-	mirrors := db.LoadMirrors(true)
+	mirrors := db.LoadMirrors()
 	writeResponse(w, mirrors)
 }
 
 func loadAll(w http.ResponseWriter, r *http.Request) {
 	rnames := db.GetRepoNames()
-	gits := db.LoadGits(true)
+	gits := db.LoadGits()
 	repos := make([]conf.Map, len(rnames))
 	for i, n := range rnames {
-		repo := db.LoadRepo(n, true)
+		repo := db.LoadRepo(n)
 		r := conf.Map{
 			"repository_name": n,
 			"num_package":     repo.Len(),
@@ -588,7 +606,16 @@ func loadAll(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, repos)
 }
 
+func refresh(w http.ResponseWriter, r *http.Request) {
+	name := getString(r, "type")
+	if name == "" {
+		name = "all"
+	}
+	loadDB(name)
+}
+
 func Serve([]string) {
+	loadDB("all")
 	port := ":" + conf.Read("api.port")
 	http.HandleFunc("/flag/list", flagList)
 	http.HandleFunc("/flag/add", flagAdd)
@@ -597,6 +624,7 @@ func Serve([]string) {
 	http.HandleFunc("/repo/list", repoList)
 	http.HandleFunc("/mirror", mirrorList)
 	http.HandleFunc("/all", loadAll)
+	http.HandleFunc("/refresh", refresh)
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		util.Fatalln(err)
