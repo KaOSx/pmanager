@@ -203,4 +203,5 @@ func Update([]string) {
 	}
 	db.SetMirrors(&mirrors)
 	db.StoreMirrors()
+	util.Refresh("mirror")
 }

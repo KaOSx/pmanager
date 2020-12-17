@@ -187,6 +187,7 @@ func Update(repos []string) {
 		}
 	}
 	errs := db.StorePackages()
+	util.Refresh("package")
 	if conf.Debug() {
 		for _, err := range errs {
 			util.Println(err)

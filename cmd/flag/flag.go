@@ -320,6 +320,7 @@ func changeFlag(flagged bool, args []string) {
 			fmt.Printf("%s %sged\n", f0.RepoName(), action)
 		}
 		db.StoreFlags()
+		util.Refresh("flag")
 		flags = nil
 	} else {
 		fmt.Println("cancel…")
@@ -348,6 +349,7 @@ func deleteFlag(args []string) {
 			fmt.Println(f0.RepoName(), "deleted")
 		}
 		db.StoreFlags()
+		util.Refresh("flag")
 		flags = nil
 	} else {
 		fmt.Println("cancel…")
