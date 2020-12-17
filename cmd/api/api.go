@@ -110,7 +110,7 @@ func getGit(p *db.Package) *db.Git {
 		return g
 	}
 	defer f.Close()
-	var xf io.Reader
+	var xf io.ReadCloser
 	if strings.HasSuffix(gpath, ".xz") {
 		xf, err = util.ReadXZ(f)
 		if err != nil {
@@ -121,6 +121,9 @@ func getGit(p *db.Package) *db.Git {
 		if err != nil {
 			util.Printf("\033[1;31mFailed to zstd -d %s: %s\033[m\n", gpath, err)
 		}
+	}
+	if err == nil {
+		defer xf.Close()
 	}
 	tf := util.ReadTAR(xf)
 	for {
