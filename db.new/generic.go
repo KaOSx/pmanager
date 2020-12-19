@@ -360,7 +360,7 @@ func (dt *Datatable) load() error {
 }
 
 func (dt *Datatable) save() error {
-	if !dt.IsLoaded() && len(dt.Datalist) == 0 && conf.Debug() {
+	if !dt.IsLoaded() && len(dt.Datalist) == 0 {
 		util.Debugln("Nothing to save")
 		return nil
 	}
@@ -387,7 +387,7 @@ func (dt *Datatable) Load(force ...bool) {
 	err := dt.load()
 	if dt.loaded = err == nil; !dt.loaded {
 		util.Printf("\033[1;31m%s\033[m\n", err)
-	} else if conf.Debug() {
+	} else {
 		util.Debugf("%s database loaded\n", dt.name)
 	}
 }
