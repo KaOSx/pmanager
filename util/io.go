@@ -54,6 +54,18 @@ func Printf(f string, v ...interface{}) {
 	Logger().Printf(f, v...)
 }
 
+func Debugln(v ...interface{}) {
+	if conf.Debug() {
+		Println(v...)
+	}
+}
+
+func Debugf(f string, v ...interface{}) {
+	if conf.Debug() {
+		Printf(f, v...)
+	}
+}
+
 func Fatalln(v ...interface{}) {
 	Logger().Fatalln(v...)
 }
