@@ -426,7 +426,7 @@ func getTables(name string) []string {
 
 func (self database) get(name string) (out Datalist) {
 	if name != "package" {
-		return self[name].GetAll()
+		return Table(name).GetAll()
 	}
 	for _, n := range repos {
 		out.Add(self[n].GetAll()...)
@@ -435,7 +435,15 @@ func (self database) get(name string) (out Datalist) {
 }
 
 func Table(name string) *Datatable {
-	return db[name]
+	if t, ok := db[name]; ok {
+		return t
+	}
+	t := &Datatable{name: name}
+	tables = append(tables, name)
+	repos = append(repos, name)
+	mtype[name] = Package{}
+	db[name] = t
+	return t
 }
 
 func All(name string, dest interface{}) {
@@ -460,27 +468,27 @@ func Contains(name string, cb MatchFunc) bool {
 
 func Load(name string, force ...bool) {
 	for _, n := range getTables(name) {
-		db[n].Load(force...)
+		Table(n).Load(force...)
 	}
 }
 
 func Save(name string) {
 	for _, n := range getTables(name) {
-		if err := db[n].Save(); err != nil {
+		if err := Table(n).Save(); err != nil {
 			util.Printf("\033[1;31mError at saving %s: %s\033[m\n", n, err)
 		}
 	}
 }
 
 func Set(name string, data interface{}) {
-	if err := db[name].Set(data, true); err != nil {
+	if err := Table(name).Set(data, true); err != nil {
 		util.Printf("\033[1;31mError at saving %s: %s\033[m\n", name, err)
 	}
 }
 
 func Remove(name string, data interface{}) {
 	dl := DatalistOf(data)
-	dt := db[name]
+	dt := Table(name)
 	dt.Lock()
 	defer dt.Unlock()
 	dt.load()
@@ -492,7 +500,7 @@ func Remove(name string, data interface{}) {
 
 func Add(name string, data interface{}, reload ...bool) {
 	dl := DatalistOf(data)
-	dt := db[name]
+	dt := Table(name)
 	dt.Lock()
 	defer dt.Unlock()
 	if len(reload) > 0 && reload[0] {
@@ -505,7 +513,7 @@ func Add(name string, data interface{}, reload ...bool) {
 }
 
 func Replace(name string, req Request, reload ...bool) {
-	dt := db[name]
+	dt := Table(name)
 	dt.Lock()
 	defer dt.Unlock()
 	if len(reload) > 0 && reload[0] {
