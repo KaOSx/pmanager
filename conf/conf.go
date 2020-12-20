@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+func init() {
+	Load()
+}
+
 const (
 	BASEDIR  = "/etc/pmanager"
 	CONFFILE = "pmanager.conf"

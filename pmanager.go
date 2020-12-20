@@ -9,7 +9,6 @@ import (
 	"pmanager/cmd/mirror"
 	"pmanager/cmd/repositories"
 	"pmanager/cmd/updateall"
-	"pmanager/conf"
 )
 
 var actions = map[string]func([]string){
@@ -100,7 +99,6 @@ func printUsage() {
 }
 
 func main() {
-	conf.Load()
 	if len(os.Args) > 1 {
 		action, ok := actions[os.Args[1]]
 		if ok {
