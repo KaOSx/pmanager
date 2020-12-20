@@ -103,18 +103,22 @@ func isMirrorOnline(url string) bool {
 
 func getMd5(mirror, repo string) (md5sum string, err error) {
 	url := fmt.Sprintf("%s%s/%s.db.tar.gz", mirror, repo, repo)
+	util.Debugf("Begin check md5 from %s\n", url)
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 	if err == nil {
 		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
+			util.Debugf("\033[1;mfailed to check md5 from %s: %s\n", url, err)
 		} else {
 			var b []byte
 			if b, err = ioutil.ReadAll(resp.Body); err == nil {
 				md5sum = fmt.Sprintf("%x", md5.Sum(b))
 			}
+			util.Debugf("check md5 from %s successful\n", url)
 		}
 	}
+	util.Debugf("End check md5 from %s\n", url)
 	return
 }
 
