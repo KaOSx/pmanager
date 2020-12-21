@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"time"
 )
 
@@ -51,4 +52,35 @@ func (p Package) IsFlagged() bool {
 func (p Package) GetGit(git *Git) (ok bool) {
 	cb := func(e Data) bool { return e.(Git).Name == p.Name }
 	return Find("git", git, cb)
+}
+
+func SearchPackageByName(search string, exact bool) func(Package) bool {
+	if !exact {
+		search = strings.ToLower(search)
+	}
+	return func(p Package) bool {
+		if exact {
+			return p.Name == search
+		}
+		return strings.Contains(strings.ToLower(p.CompleteName()), search)
+	}
+}
+
+func SearchPackageByDateFrom(e time.Time) func(Package) bool {
+	return func(p Package) bool { return !p.BuildDate.Before(e) }
+}
+
+func SearchPackageByDateTo(e time.Time) func(Package) bool {
+	return func(p Package) bool { return !p.BuildDate.After(e) }
+}
+
+func SearchPackageByFlagged(e bool) func(Package) bool {
+	return func(p Package) bool { return p.IsFlagged() == e }
+}
+
+func PackageFilter2MatchFunc(cb func(Package) bool) MatchFunc {
+	return func(e Data) bool {
+		p, ok := e.(Package)
+		return ok && cb(p)
+	}
 }

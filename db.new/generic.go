@@ -29,7 +29,7 @@ func init() {
 	mtype = map[string]interface{}{
 		"flag":   Flag{},
 		"git":    Git{},
-		"mirror": Mirror{},
+		"mirror": Country{},
 	}
 	for _, n := range tables {
 		db[n] = &Datatable{name: n}
@@ -81,10 +81,9 @@ type MatchFunc func(Data) bool
 type ReplaceFunc func(Data) Data
 
 type Request struct {
-	sort          CmpFunc
-	filter        MatchFunc
-	limit, offset *int
-	replace       ReplaceFunc
+	sort    CmpFunc
+	filter  MatchFunc
+	replace ReplaceFunc
 }
 
 func (req Request) SetFilter(args ...MatchFunc) Request {
@@ -119,6 +118,14 @@ func (req Request) SetSort(args ...CmpFunc) Request {
 	return req
 }
 
+func (req Request) ReverseSort() Request {
+	if req.sort != nil {
+		cb := req.sort
+		req.sort = func(e1, e2 Data) int { return -cb(e1, e2) }
+	}
+	return req
+}
+
 func (req Request) SetReplace(args ...ReplaceFunc) Request {
 	if len(args) == 1 && args[0] == nil {
 		req.replace = nil
@@ -133,22 +140,37 @@ func (req Request) SetReplace(args ...ReplaceFunc) Request {
 	return req
 }
 
-func (req Request) SetLimit(limit int) Request {
-	if limit < 0 {
-		req.limit = nil
-	} else {
-		req.limit = &limit
+type Pagination map[string]int64
+
+func NewPagination(limit, page int64) Pagination {
+	return Pagination{
+		"limit": limit,
+		"page":  page,
 	}
-	return req
 }
 
-func (req Request) SetOffset(offset int) Request {
-	if offset < 0 {
-		req.offset = nil
-	} else {
-		req.offset = &offset
+func (p Pagination) Set(name string, value int64) Pagination {
+	p[name] = value
+	return p
+}
+
+func (p Pagination) Paginate(dl Datalist) Datalist {
+	total := int64(len(dl))
+	limit := p["limit"]
+	if limit == 0 {
+		limit = total
 	}
-	return req
+	offset := (p["page"] - 1) * limit
+	last := int64(1)
+	if limit > 0 {
+		last = (total-1)/limit + 1
+	}
+	p.
+		Set("total", total).
+		Set("limit", limit).
+		Set("offset", offset).
+		Set("last", last)
+	return dl.Slice(limit, offset)
 }
 
 type Datalist []Data
@@ -236,31 +258,24 @@ func (dl Datalist) Sort(cb CmpFunc) Datalist {
 	return dl
 }
 
-func (dl Datalist) Slice(limit, offset int) Datalist {
-	if limit <= 0 || offset >= len(dl) {
+func (dl Datalist) Slice(limit, offset int64) Datalist {
+	l := int64(len(dl))
+	if limit <= 0 || offset >= l {
 		return nil
 	}
 	if offset >= 0 {
 		dl = dl[offset:]
 	}
-	if limit < len(dl) {
+	if limit < l {
 		dl = dl[:limit]
 	}
 	return dl
 }
 
 func (dl Datalist) Search(req Request) Datalist {
-	limit, offset := len(dl), 0
-	if req.limit != nil {
-		limit = *req.limit
-	}
-	if req.offset != nil {
-		offset = *req.offset
-	}
 	return dl.
 		Filter(req.filter).
-		Sort(req.sort).
-		Slice(limit, offset)
+		Sort(req.sort)
 }
 
 func (dl Datalist) First(cb MatchFunc) (d Data, ok bool) {
@@ -290,7 +305,7 @@ func (dl Datalist) clone(dest interface{}) {
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Slice {
 		panic("dest must be a pointer of slice")
 	}
-	v := reflect.MakeSlice(t, len(dl), cap(dl))
+	v := reflect.MakeSlice(t.Elem(), len(dl), cap(dl))
 	for i, e := range dl {
 		vi := v.Index(i).Addr()
 		clone(e, vi.Interface())
@@ -329,7 +344,8 @@ func (dt *Datatable) IsLoaded() bool {
 
 func (dt *Datatable) newDatalist() reflect.Value {
 	t := reflect.TypeOf(mtype[dt.name])
-	return reflect.New(t)
+	ts := reflect.SliceOf(t)
+	return reflect.New(ts)
 }
 
 func (dt *Datatable) file() string {
@@ -352,7 +368,7 @@ func (dt *Datatable) load() error {
 	defer f.Close()
 	err = util.ReadJSON(f, data.Interface())
 	if err != nil {
-		err = fmt.Errorf("Failed to load %s", fpath)
+		err = fmt.Errorf("Failed to load %s: %s", fpath, err)
 		return err
 	}
 	dt.Datalist = DatalistOf(reflect.Indirect(data).Interface())
@@ -434,6 +450,11 @@ func (self database) get(name string) (out Datalist) {
 	return
 }
 
+func HasTable(name string) bool {
+	_, ok := db[name]
+	return ok
+}
+
 func Table(name string) *Datatable {
 	if t, ok := db[name]; ok {
 		return t
@@ -446,12 +467,22 @@ func Table(name string) *Datatable {
 	return t
 }
 
-func All(name string, dest interface{}) {
-	db.get(name).clone(dest)
+func All(name string, dest interface{}) int64 {
+	dl := db.get(name)
+	dl.clone(dest)
+	return int64(len(dl))
 }
 
-func FindAll(name string, dest interface{}, req Request) {
-	db.get(name).Search(req).clone(dest)
+func FindAll(name string, dest interface{}, req Request) int64 {
+	dl := db.get(name).Search(req)
+	dl.clone(dest)
+	return int64(len(dl))
+}
+
+func Paginate(name string, dest interface{}, req Request, pagination Pagination) {
+	dl := db.get(name).Search(req)
+	dl = pagination.Paginate(dl)
+	dl.clone(dest)
 }
 
 func Find(name string, dest interface{}, cb MatchFunc) bool {
