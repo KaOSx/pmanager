@@ -76,3 +76,11 @@ func FlagFilter2MatchFunc(cb func(Flag) bool) MatchFunc {
 		return ok && cb(f)
 	}
 }
+
+func FlagCmp2CmpFunc(cb func(Flag, Flag) int) CmpFunc {
+	return func(e1, e2 Data) int {
+		f1, _ := e1.(Flag)
+		f2, _ := e2.(Flag)
+		return cb(f1, f2)
+	}
+}
