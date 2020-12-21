@@ -333,6 +333,7 @@ func changeFlag(flagged bool, args []string) {
 	var search db.Request
 	search = search.SetFilter(filter).SetReplace(repl)
 	db.Replace("flag", search, true)
+	util.Refresh("flag")
 	for _, i := range rg {
 		f := (*flags)[i-1]
 		fmt.Printf("%s %sged\n", f.RepoName(), action)
@@ -367,7 +368,7 @@ func deleteFlag(args []string) {
 	}
 
 	db.Remove("flag", dflags)
-
+	util.Refresh("flag")
 	for _, f := range dflags {
 		fmt.Println(f.RepoName(), "deleted")
 	}
