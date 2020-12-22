@@ -9,77 +9,81 @@ import (
 	"os"
 	"pmanager/conf"
 	"pmanager/db"
-	"strings"
-	"sync"
-
 	"pmanager/util"
 	"sort"
+	"strings"
+	"sync"
 )
 
-func getRepoFromFile() (repos []string, err error) {
+var (
+	mainMirrorName string
+)
+
+func init() {
+	mainMirrorName = conf.Read("mirror.main_mirror")
+}
+
+func getAvailableRepos() (repos []string, err error) {
 	var f *os.File
 	f, err = os.Open(conf.Read("mirror.pacmanconf"))
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	buf := bufio.NewReader(f)
-	for {
-		s, e := buf.ReadString('\n')
-		s = strings.TrimSpace(s)
-		l := len(s)
-		if l > 2 && s[0] == '[' && s[l-1] == ']' && s[1:l-1] != "options" {
-			repos = append(repos, s[1:l-1])
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if !strings.HasPrefix(line, "[") || !strings.HasSuffix(line, "]") {
+			continue
 		}
-		if e != nil {
-			break
+		l := len(line)
+		name := line[1 : l-1]
+		if name != "options" {
+			repos = append(repos, name)
 		}
 	}
 	return
 }
 
-func setRepos(repos []string) []*db.Repo {
-	out := make([]*db.Repo, len(repos))
+func newRepos(repos []string) []db.Repo {
+	out := make([]db.Repo, len(repos))
 	for i, r := range repos {
-		out[i] = &db.Repo{Name: r}
+		out[i] = db.Repo{Name: r}
 	}
 	return out
 }
 
-func getMirrorFromFile(repos []string) (mirrors db.CountryList, err error) {
+func getAvailableCountries(repos []string) (countries []db.Country, err error) {
 	var f *os.File
 	f, err = os.Open(conf.Read("mirror.mirrorlist"))
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	buf := bufio.NewReader(f)
 	var country *db.Country
-	for {
-		s, e := buf.ReadString('\n')
-		if i := strings.Index(s, "Server ="); i >= 0 {
-			m := strings.TrimSpace(s[i+8:])
-			m = strings.Replace(m, "$repo", "", 1)
-			mirror := &db.Mirror{
-				Name:  m,
-				Repos: setRepos(repos),
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if i := strings.Index(line, "Server ="); i >= 0 {
+			mirrorName := strings.TrimSpace(line[i+8:])
+			mirrorName = strings.Replace(mirrorName, "$repo", "", 1)
+			mirror := db.Mirror{
+				Name:  mirrorName,
+				Repos: newRepos(repos),
 			}
 			country.Mirrors = append(country.Mirrors, mirror)
-		} else if strings.HasPrefix(s, "#") {
+		} else if strings.HasPrefix(line, "#") {
 			if country == nil {
 				country = new(db.Country)
 			} else if len(country.Mirrors) > 0 {
-				mirrors = append(mirrors, country)
+				countries = append(countries, *country)
 				country = new(db.Country)
 			}
-			country.Name = strings.TrimSpace(s[1:])
-		}
-		if e != nil {
-			break
+			country.Name = strings.TrimSpace(line[1:])
 		}
 	}
-	sort.Slice(mirrors, func(i, j int) bool {
-		c1, c2 := mirrors[i].Name, mirrors[j].Name
+	sort.Slice(countries, func(i, j int) bool {
+		c1, c2 := countries[i].Name, countries[j].Name
 		if strings.HasPrefix(c1, "Default") {
 			return true
 		}
@@ -93,32 +97,37 @@ func getMirrorFromFile(repos []string) (mirrors db.CountryList, err error) {
 
 func isMirrorOnline(url string) bool {
 	resp, err := http.Head(url)
-	return err == nil && resp.StatusCode == 200
+	return err == nil && resp.StatusCode == http.StatusOK
 }
 
 func getMd5(mirror, repo string) (md5sum string, err error) {
 	url := fmt.Sprintf("%s%s/%s.db.tar.gz", mirror, repo, repo)
+	util.Debugf("Begin check md5 from %s\n", url)
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 	if err == nil {
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
+			util.Debugf("\033[1;mfailed to check md5 from %s: %s\n", url, err)
 		} else {
 			var b []byte
 			if b, err = ioutil.ReadAll(resp.Body); err == nil {
 				md5sum = fmt.Sprintf("%x", md5.Sum(b))
 			}
+			util.Debugf("check md5 from %s successful\n", url)
 		}
 	}
+	util.Debugf("End check md5 from %s\n", url)
 	return
 }
 
-func getMirrorMd5(mirror *db.Mirror, hash map[string][]string, mx *sync.RWMutex) {
+func getMirrorMd5(mirror *db.Mirror, hash map[string][]string, mx *sync.Mutex) {
 	if mirror.Online = isMirrorOnline(mirror.Name); !mirror.Online {
 		return
 	}
 	var wg sync.WaitGroup
-	for i, r := range mirror.Repos {
+	for i := range mirror.Repos {
+		r := &mirror.Repos[i]
 		wg.Add(1)
 		go func(i int, repo *db.Repo) {
 			defer wg.Done()
@@ -132,19 +141,19 @@ func getMirrorMd5(mirror *db.Mirror, hash map[string][]string, mx *sync.RWMutex)
 	wg.Wait()
 }
 
-func checkMd5(mirror *db.Mirror, mainmirror string, hash map[string][]string) {
+func checkMd5(mirror *db.Mirror, hash map[string][]string) {
 	if !mirror.Online {
 		return
 	}
 	hr := hash[mirror.Name]
-	for i, hm := range hash[mainmirror] {
+	for i, hm := range hash[mainMirrorName] {
 		h := hr[i]
 		mirror.Repos[i].Sync = h != "" && h == hm
 	}
 }
 
 func Update([]string) {
-	repos, err := getRepoFromFile()
+	repos, err := getAvailableRepos()
 	if err != nil {
 		util.Fatalln(err)
 	}
@@ -157,19 +166,19 @@ func Update([]string) {
 	if !has_build {
 		repos = append([]string{"build"}, repos...)
 	}
-	if conf.ReadBool("main.debug") {
+	if conf.Debug() {
 		util.Println("Found repos:")
 		for _, r := range repos {
 			util.Println(" -", r)
 		}
 	}
-	mirrors, err := getMirrorFromFile(repos)
+	countries, err := getAvailableCountries(repos)
 	if err != nil {
 		util.Fatalln(err)
 	}
-	if conf.ReadBool("main.debug") {
+	if conf.Debug() {
 		util.Println("Found mirrors:")
-		for _, c := range mirrors {
+		for _, c := range countries {
 			util.Println(" *", c.Name)
 			for _, m := range c.Mirrors {
 				util.Println("    →", m.Name)
@@ -178,15 +187,16 @@ func Update([]string) {
 	}
 	hash := make(map[string][]string)
 	l := len(repos)
-	for _, c := range mirrors {
+	for _, c := range countries {
 		for _, m := range c.Mirrors {
 			hash[m.Name] = make([]string, l)
 		}
 	}
 	var wg sync.WaitGroup
-	mx := new(sync.RWMutex)
-	for _, c := range mirrors {
-		for _, m := range c.Mirrors {
+	mx := new(sync.Mutex)
+	for _, c := range countries {
+		for i := range c.Mirrors {
+			m := &c.Mirrors[i]
 			wg.Add(1)
 			go func(mirror *db.Mirror) {
 				defer wg.Done()
@@ -195,13 +205,12 @@ func Update([]string) {
 		}
 	}
 	wg.Wait()
-	mm := conf.Read("mirror.main_mirror")
-	for _, c := range mirrors {
-		for _, m := range c.Mirrors {
-			checkMd5(m, mm, hash)
+	for _, c := range countries {
+		for i := range c.Mirrors {
+			m := &c.Mirrors[i]
+			checkMd5(m, hash)
 		}
 	}
-	db.SetMirrors(&mirrors)
-	db.StoreMirrors()
+	db.Set("mirror", countries)
 	util.Refresh("mirror")
 }

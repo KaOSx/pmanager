@@ -17,28 +17,13 @@ import (
 	"time"
 )
 
-func loadDB(name string) {
-	switch name {
-	case "flag":
-		db.LoadFlags(true)
-	case "mirror":
-		db.LoadMirrors(true)
-	case "package":
-		db.LoadPackages(true)
-	case "git":
-		db.LoadGits(true)
-	case "all":
-		db.LoadFlags(true)
-		db.LoadMirrors(true)
-		db.LoadPackages(true)
-		db.LoadGits(true)
-	}
-}
-
-func sendFormSpree(f *db.Flag) {
+func getMailSubjectAndBody(f db.Flag, cr string) (subject, body string) {
 	pname := f.CompleteName()
-	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
-	body := []string{
+	comment := f.Comment
+	if cr != "\n" {
+		comment = strings.ReplaceAll(comment, "\n", cr)
+	}
+	bodyLines := []string{
 		fmt.Sprintf("Package details: %s/view.php?repo=%s&name=%s", conf.Read("main.viewurl"), f.Repository, pname),
 		"",
 		"",
@@ -47,34 +32,38 @@ func sendFormSpree(f *db.Flag) {
 		"by: " + f.Email,
 		"",
 		"Additional informations:",
-		f.Comment,
+		comment,
 	}
-	strbody := strings.Join(body, "\n")
+	subject = fmt.Sprintf("The package %s has been flagged as outdated", pname)
+	body = strings.Join(bodyLines, cr)
+	return
+}
+
+func sendFormSpree(f db.Flag) {
+	subject, body := getMailSubjectAndBody(f, "\n")
 	data := new(bytes.Buffer)
 	encoder := json.NewEncoder(data)
 	encoder.Encode(map[string]interface{}{
 		"email":    f.Email,
 		"_subject": subject,
-		"message":  strbody,
+		"message":  body,
 	})
 	var client http.Client
 	request, err := http.NewRequest("POST", "https://formspree.io/"+conf.Read("smtp.send_to"), data)
 	if err != nil {
-		if conf.Debug() {
-			util.Println("Request error:", err)
-		}
+		util.Debugln("Request error:", err)
 		return
 	}
 	request.Header.Add("Referer", conf.Read("main.viewurl"))
 	request.Header.Add("Content-Type", "application/json")
 	resp, err := client.Do(request)
 	defer resp.Body.Close()
-	if conf.Debug() && err != nil {
-		util.Println("Response error:", err)
+	if err != nil {
+		util.Println("Failed to send formspree mail:", err)
 	}
 }
 
-func sendMail(f *db.Flag) {
+func sendMail(f db.Flag) {
 	server := mail.Server{
 		Host:     conf.Read("smtp.host"),
 		Port:     conf.Read("smtp.port"),
@@ -82,27 +71,15 @@ func sendMail(f *db.Flag) {
 		User:     conf.Read("smtp.user"),
 		Password: conf.Read("smtp.password"),
 	}
-	pname := f.CompleteName()
-	subject := fmt.Sprintf("The package %s has been flagged as outdated", pname)
-	body := []string{
-		fmt.Sprintf("Package details: %s/view.php?repo=%s&name=%s", conf.Read("main.viewurl"), f.Repository, pname),
-		"",
-		"",
-		"---",
-		fmt.Sprintf("The package %s has been flagged as outdated.", pname),
-		"by: " + f.Email,
-		"",
-		"Additional informations:",
-		strings.Replace(f.Comment, "\n", "\r\n", -1),
-	}
-	m := mail.New(server, conf.Read("smtp.send_from"), conf.Read("smtp.send_to"), subject, strings.Join(body, "\r\n"))
+	subject, body := getMailSubjectAndBody(f, "\r\n")
+	m := mail.New(server, conf.Read("smtp.send_from"), conf.Read("smtp.send_to"), subject, body)
 	m.AddHeader("Reply-To", conf.Read("smtp.send_to")).
 		AddHeader("X-Mailer", "Packages").
 		AddHeader("MIME-Version", "1.0").
 		AddHeader("Content-Transfer-Encoding", "8bit").
 		AddHeader("Content-type", "text/plain; charset=utf-8")
 	if err := m.Send(); err != nil {
-		util.Println(err)
+		util.Println("Failed to send mail:", err)
 	}
 }
 
@@ -117,32 +94,30 @@ func readPkginfo(sc *bufio.Scanner, g *db.Git) {
 	}
 }
 
-func getGit(p *db.Package) *db.Git {
-	g := new(db.Git)
+func getGit(p db.Package, git *db.Git) (ok bool) {
 	gpath := path.Join(conf.Read("repository.basedir"), p.Repository, p.FileName())
 	f, err := os.Open(gpath)
 	if err != nil {
-		if conf.Debug() {
-			util.Printf("\033[1;31mFailed to load %s: %s\033[m\n", gpath, err)
-		}
-		return g
+		util.Debugf("\033[1;31mFailed to load %s: %s\033[m\n", gpath, err)
+		return
 	}
 	defer f.Close()
 	var xf io.ReadCloser
 	if strings.HasSuffix(gpath, ".xz") {
 		xf, err = util.ReadXZ(f)
 		if err != nil {
-			util.Printf("\033[1;31mFailed to xunzip %s: %s\033[m\n", gpath, err)
+			util.Debugf("\033[1;31mFailed to xunzip %s: %s\033[m\n", gpath, err)
 		}
 	} else {
 		xf, err = util.ReadZST(f)
 		if err != nil {
-			util.Printf("\033[1;31mFailed to zstd -d %s: %s\033[m\n", gpath, err)
+			util.Debugf("\033[1;31mFailed to zstd -d %s: %s\033[m\n", gpath, err)
 		}
 	}
-	if err == nil {
-		defer xf.Close()
+	if err != nil {
+		return
 	}
+	defer xf.Close()
 	tf := util.ReadTAR(xf)
 	for {
 		hdr, err := tf.Next()
@@ -153,12 +128,13 @@ func getGit(p *db.Package) *db.Git {
 			var buf bytes.Buffer
 			if _, err = io.Copy(&buf, tf); err == nil {
 				sc := bufio.NewScanner(&buf)
-				readPkginfo(sc, g)
+				readPkginfo(sc, git)
+				ok = true
 			}
 			break
 		}
 	}
-	return g
+	return
 }
 
 func writeResponse(w http.ResponseWriter, data interface{}, codes ...int) {
@@ -166,15 +142,15 @@ func writeResponse(w http.ResponseWriter, data interface{}, codes ...int) {
 	if len(codes) == 1 {
 		code = codes[0]
 	}
+	w.WriteHeader(code)
 	b := util.JSON(data)
 	if _, err := w.Write(b); err == nil {
 		w.Header().Add("Content-Type", "application/json")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
 		w.Header().Add("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers")
-		w.WriteHeader(code)
-	} else if conf.Debug() {
-		util.Println("Response error:", err)
+	} else {
+		util.Debugln("Response error:", err)
 	}
 }
 
@@ -183,25 +159,16 @@ func getInt(r *http.Request, key string) int64      { return conf.String2Int(get
 func getBool(r *http.Request, key string) bool      { return conf.String2Bool(getString(r, key)) }
 func getDate(r *http.Request, key string) time.Time { return conf.String2Date(getString(r, key)) }
 
-func paginate(r *http.Request, count int64) (pagination conf.Map) {
-	pagination = make(conf.Map)
-	pagination["total"] = count
+func paginate(r *http.Request) (pagination db.Pagination) {
 	page := getInt(r, "page")
 	if page <= 0 {
 		page = 1
 	}
-	pagination["page"] = page
 	limit := getInt(r, "limit")
 	if limit <= 0 {
 		limit = conf.ReadInt("api.pagination")
 	}
-	if limit == 0 {
-		limit = count
-	}
-	pagination["limit"] = limit
-	pagination["offset"] = (page - 1) * limit
-	pagination["last"] = (count-1)/limit + 1
-	return
+	return db.NewPagination(limit, page)
 }
 
 func sort(r *http.Request) (sorted conf.Map) {
@@ -212,79 +179,86 @@ func sort(r *http.Request) (sorted conf.Map) {
 }
 
 func flagList(w http.ResponseWriter, r *http.Request) {
-	flags := db.LoadFlags()
-	filters := make(conf.Map)
-	var funcs []func(*db.Flag) bool
+	pagination := paginate(r)
+	var search db.Request
+
+	mfilter := make(conf.Map)
+	var filters []db.MatchFunc
 	if e := getString(r, "search"); e != "" {
-		filters["search"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return strings.Contains(f.CompleteName(), e)
-		})
+		mfilter["search"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByName(e)))
 	}
 	if e := getString(r, "repo"); e != "" {
-		filters["repo"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return f.Repository == e
-		})
+		mfilter["repo"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByRepo(e)))
 	}
 	if e := getString(r, "email"); e != "" {
-		filters["email"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return strings.Contains(f.Email, e)
-		})
+		mfilter["email"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByEmail(e)))
 	}
 	if e := getDate(r, "from"); !e.IsZero() {
-		filters["from"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return !f.Date.Before(e)
-		})
+		mfilter["from"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByDateFrom(e)))
 	}
 	if e := getDate(r, "to"); !e.IsZero() {
-		filters["to"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return !f.Date.After(e)
-		})
+		mfilter["to"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByDateTo(e)))
 	}
 	if getString(r, "flagged") != "" {
 		e := getBool(r, "flagged")
-		filters["flagged"] = e
-		funcs = append(funcs, func(f *db.Flag) bool {
-			return f.Flagged == e
+		mfilter["flagged"] = e
+		filters = append(filters, db.FlagFilter2MatchFunc(db.SearchFlagByFlagged(e)))
+	}
+
+	msort := sort(r)
+	var sorts []db.CmpFunc
+	d2f := func(e1, e2 db.Data) (f1, f2 db.Flag) {
+		f1, _ = e1.(db.Flag)
+		f2, _ = e2.(db.Flag)
+		return
+	}
+	switch msort["field"] {
+	case "name":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			f1, f2 := d2f(e1, e2)
+			return util.CompareString(f1.CompleteName(), f2.CompleteName())
+		})
+	case "repo":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			f1, f2 := d2f(e1, e2)
+			return util.CompareString(f1.Repository, f2.Repository)
+		})
+	case "date":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			f1, f2 := d2f(e1, e2)
+			return util.CompareDate(f1.Date, f2.Date)
+		})
+	case "flagged":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			f1, f2 := d2f(e1, e2)
+			return util.CompareBool(f1.Flagged, f2.Flagged)
 		})
 	}
-	if len(funcs) > 0 {
-		flags = flags.Filter(funcs...)
+
+	search = search.
+		SetFilter(filters...).
+		SetSort(sorts...)
+	if !msort.GetBool("asc") {
+		search = search.ReverseSort()
 	}
-	sorter := sort(r)
-	var cmp func(*db.Flag, *db.Flag) int
-	if e := sorter["field"]; e != "" {
-		switch e {
-		case "name":
-			cmp = func(f1, f2 *db.Flag) int { return util.CompareString(f1.CompleteName(), f2.CompleteName()) }
-		case "repo":
-			cmp = func(f1, f2 *db.Flag) int { return util.CompareString(f1.Repository, f2.Repository) }
-		case "date":
-			cmp = func(f1, f2 *db.Flag) int { return util.CompareDate(f1.Date, f2.Date) }
-		case "flagged":
-			cmp = func(f1, f2 *db.Flag) int { return util.CompareBool(f1.Flagged, f2.Flagged) }
-		}
-		if cmp != nil {
-			flags = flags.Sort(cmp)
-		}
-	}
-	count := int64(len(*flags))
-	paginator := paginate(r, count)
-	flags = flags.LimitOffset(paginator.GetInt("limit"), paginator.GetInt("offset"))
+
+	var flags []db.Flag
+	db.Paginate("flag", &flags, search, pagination)
+
 	writeResponse(w, conf.Map{
-		"data":     *flags,
-		"filter":   filters,
-		"sort":     sorter,
-		"paginate": paginator,
+		"data":     flags,
+		"filter":   mfilter,
+		"sort":     msort,
+		"paginate": pagination,
 	})
 }
 
 func flagAdd(w http.ResponseWriter, r *http.Request) {
-	flags := db.LoadFlags()
 	f := db.Flag{
 		Name:       getString(r, "name"),
 		Version:    getString(r, "version"),
@@ -294,16 +268,12 @@ func flagAdd(w http.ResponseWriter, r *http.Request) {
 		Flagged:    true,
 		Date:       time.Now(),
 	}
-	flags.Add(&f)
+	db.Add("flag", f, true)
 	if m := strings.ToUpper(r.Method); m == "GET" || m == "POST" {
-		if err := db.StoreFlags(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		if conf.ReadBool("smtp.use_formspree") {
-			sendFormSpree(&f)
+			sendFormSpree(f)
 		} else {
-			sendMail(&f)
+			sendMail(f)
 		}
 	}
 	writeResponse(w, conf.Map{
@@ -311,94 +281,84 @@ func flagAdd(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func packageList(w http.ResponseWriter, r *http.Request) {
-	packages := db.LoadPackages()
-	filters := make(conf.Map)
-	var funcs []func(*db.Package) bool
-	exact := getBool(r, "exact")
+func searchPackages(w http.ResponseWriter, r *http.Request, table string) {
+	pagination := paginate(r)
+	var search db.Request
+
+	mfilter := make(conf.Map)
+	var filters []db.MatchFunc
 	if e := getString(r, "search"); e != "" {
-		filters["search"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			if exact {
-				return p.Name == e
-			}
-			return strings.Contains(p.CompleteName(), e)
-		})
+		exact := getBool(r, "exact")
+		mfilter["search"] = e
+		mfilter["exact"] = exact
+		filters = append(filters, db.PackageFilter2MatchFunc(db.SearchPackageByName(e, exact)))
 	}
 	if e := getDate(r, "from"); !e.IsZero() {
-		filters["from"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return !p.BuildDate.Before(e)
-		})
+		mfilter["from"] = e
+		filters = append(filters, db.PackageFilter2MatchFunc(db.SearchPackageByDateFrom(e)))
 	}
 	if e := getDate(r, "to"); !e.IsZero() {
-		filters["to"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return !p.BuildDate.After(e)
-		})
+		mfilter["to"] = e
+		filters = append(filters, db.PackageFilter2MatchFunc(db.SearchPackageByDateTo(e)))
 	}
-	flagged := false
 	if getString(r, "flagged") != "" {
 		e := getBool(r, "flagged")
-		flagged = true
-		db.LoadFlags()
-		filters["flagged"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return p.IsFlagged() == e
+		mfilter["flagged"] = e
+		filters = append(filters, db.PackageFilter2MatchFunc(db.SearchPackageByFlagged(e)))
+	}
+
+	msort := sort(r)
+	var sorts []db.CmpFunc
+	d2p := func(e1, e2 db.Data) (p1, p2 db.Package) {
+		p1, _ = e1.(db.Package)
+		p2, _ = e2.(db.Package)
+		return
+	}
+	switch msort["field"] {
+	case "name":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			p1, p2 := d2p(e1, e2)
+			return util.CompareString(p1.CompleteName(), p2.CompleteName())
+		})
+	case "repo":
+		if table == "package" {
+			sorts = append(sorts, func(e1, e2 db.Data) int {
+				p1, p2 := d2p(e1, e2)
+				return util.CompareString(p1.Repository, p2.Repository)
+			})
+		}
+	case "date":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			p1, p2 := d2p(e1, e2)
+			return util.CompareDate(p1.BuildDate, p2.BuildDate)
+		})
+	case "flagged":
+		sorts = append(sorts, func(e1, e2 db.Data) int {
+			p1, p2 := d2p(e1, e2)
+			return util.CompareBool(p1.IsFlagged(), p2.IsFlagged())
 		})
 	}
-	if len(funcs) > 0 {
-		packages = packages.Filter(funcs...)
+
+	search = search.
+		SetFilter(filters...).
+		SetSort(sorts...)
+	if !msort.GetBool("asc") {
+		search = search.ReverseSort()
 	}
-	sorter := sort(r)
-	var cmp func(*db.Package, *db.Package) int
-	if e := sorter["field"]; e != "" {
-		switch e {
-		case "name":
-			cmp = func(p1, p2 *db.Package) int { return util.CompareString(p1.CompleteName(), p2.CompleteName()) }
-		case "repo":
-			cmp = func(p1, p2 *db.Package) int { return util.CompareString(p1.Repository, p2.Repository) }
-		case "date":
-			cmp = func(p1, p2 *db.Package) int { return util.CompareDate(p1.BuildDate, p2.BuildDate) }
-		case "flagged":
-			if !flagged {
-				db.LoadFlags()
-			}
-			cmp = func(p1, p2 *db.Package) int { return util.CompareBool(p1.IsFlagged(), p2.IsFlagged()) }
-		}
-		if cmp != nil {
-			if sorter.GetBool("asc") {
-				packages = packages.Sort(cmp)
-			} else {
-				packages = packages.Sort(func(p1, p2 *db.Package) int { return -cmp(p1, p2) })
-			}
-		}
-	}
-	var total_size int64
-	for _, p := range *packages {
-		total_size += p.PackageSize
-	}
-	count := int64(len(*packages))
-	paginator := paginate(r, count)
-	packages = packages.LimitOffset(paginator.GetInt("limit"), paginator.GetInt("offset"))
-	data := make([]conf.Map, len(*packages))
-	for i, p := range *packages {
-		m := util.ToMap(p)
-		m.Delete("Licenses", "Groups", "Depends", "MakeDepends", "OptDepends", "Files")
-		m["PackageSize"] = util.FormatSize(m.GetInt("PackageSize"))
-		m["InstalledSize"] = util.FormatSize(m.GetInt("InstalledSize"))
-		m["CompleteName"] = p.CompleteName()
-		m["RepoName"] = p.RepoName()
-		m["FileName"] = p.FileName()
-		data[i] = m
-	}
+
+	var packages []db.Package
+	db.Paginate(table, &packages, search, pagination)
+
 	writeResponse(w, conf.Map{
-		"data":     data,
-		"size":     util.FormatSize(total_size),
-		"filter":   filters,
-		"sort":     sorter,
-		"paginate": paginator,
+		"data":     packages,
+		"filter":   mfilter,
+		"sort":     msort,
+		"paginate": pagination,
 	})
+}
+
+func packageList(w http.ResponseWriter, r *http.Request) {
+	searchPackages(w, r, "package")
 }
 
 func packageView(w http.ResponseWriter, r *http.Request) {
@@ -408,30 +368,33 @@ func packageView(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
-	packages := db.LoadRepo(repo).Filter(func(p *db.Package) bool { return p.CompleteName() == pkgname })
-	if len(*packages) == 0 {
+
+	var p db.Package
+	found := db.Find(
+		repo,
+		&p,
+		db.PackageFilter2MatchFunc(func(p db.Package) bool {
+			return p.CompleteName() == pkgname
+		}),
+	)
+	if !found {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
-	p := (*packages)[0]
-	gits := db.LoadGits()
-	g := p.GetGit()
-	if g == nil {
-		g = getGit(p)
-		if g.Repository != "" && g.Folder != "" {
+
+	var g db.Git
+	if !p.GetGit(&g) {
+		if getGit(p, &g) {
 			g.Name = p.Name
-			gits.Add(g)
-			if err := db.StoreGits(); err != nil && conf.Debug() {
-				util.Println("\033[1;31mFailed to store git database\033[m")
-			}
+			db.Add("git", g, true)
 		}
 	}
-	db.LoadFlags()
+
 	data := util.ToMap(p)
 	gurl := conf.Read("main.giturl") + g.Repository
 	data["Flagged"] = p.IsFlagged()
-	data["PackageSize"] = util.FormatSize(data.GetInt("PackageSize"))
-	data["InstalledSize"] = util.FormatSize(data.GetInt("InstalledSize"))
+	data["PackageSize"] = util.FormatSize(p.PackageSize)
+	data["InstalledSize"] = util.FormatSize(p.InstalledSize)
 	data["CompleteName"] = p.CompleteName()
 	data["RepoName"] = p.RepoName()
 	data["FileName"] = p.FileName()
@@ -447,129 +410,37 @@ func packageView(w http.ResponseWriter, r *http.Request) {
 }
 
 func repoList(w http.ResponseWriter, r *http.Request) {
-	rname := getString(r, "repo")
-	if rname == "" {
+	repo := getString(r, "repo")
+	if repo == "" || !db.HasTable(repo) {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
-	packages := db.LoadRepo(rname)
-	if len(*packages) == 0 {
-		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
-		return
-	}
-	filters := make(conf.Map)
-	var funcs []func(*db.Package) bool
-	exact := getBool(r, "exact")
-	if e := getString(r, "search"); e != "" {
-		filters["search"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			if exact {
-				return p.Name == e
-			}
-			return strings.Contains(p.CompleteName(), e)
-		})
-	}
-	if e := getDate(r, "from"); !e.IsZero() {
-		filters["from"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return !p.BuildDate.Before(e)
-		})
-	}
-	if e := getDate(r, "to"); !e.IsZero() {
-		filters["to"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return !p.BuildDate.After(e)
-		})
-	}
-	flagged := false
-	if getString(r, "flagged") != "" {
-		e := getBool(r, "flagged")
-		flagged = true
-		db.LoadFlags()
-		filters["flagged"] = e
-		funcs = append(funcs, func(p *db.Package) bool {
-			return p.IsFlagged() == e
-		})
-	}
-	if len(funcs) > 0 {
-		packages = packages.Filter(funcs...)
-	}
-	sorter := sort(r)
-	var cmp func(*db.Package, *db.Package) int
-	if e := sorter["field"]; e != "" {
-		switch e {
-		case "name":
-			cmp = func(p1, p2 *db.Package) int { return util.CompareString(p1.CompleteName(), p2.CompleteName()) }
-		case "date":
-			cmp = func(p1, p2 *db.Package) int { return util.CompareDate(p1.BuildDate, p2.BuildDate) }
-		case "flagged":
-			if !flagged {
-				db.LoadFlags()
-			}
-			cmp = func(p1, p2 *db.Package) int { return util.CompareBool(p1.IsFlagged(), p2.IsFlagged()) }
-		}
-		if cmp != nil {
-			if sorter.GetBool("asc") {
-				packages = packages.Sort(cmp)
-			} else {
-				packages = packages.Sort(func(p1, p2 *db.Package) int { return -cmp(p1, p2) })
-			}
-		}
-	}
-	var total_size int64
-	for _, p := range *packages {
-		total_size += p.PackageSize
-	}
-	count := int64(len(*packages))
-	paginator := paginate(r, count)
-	packages = packages.LimitOffset(paginator.GetInt("limit"), paginator.GetInt("offset"))
-	data := make([]conf.Map, len(*packages))
-	for i, p := range *packages {
-		m := util.ToMap(p)
-		m.Delete("Licenses", "Groups", "Depends", "MakeDepends", "OptDepends", "Files")
-		m["PackageSize"] = util.FormatSize(m.GetInt("PackageSize"))
-		m["InstalledSize"] = util.FormatSize(m.GetInt("InstalledSize"))
-		m["CompleteName"] = p.CompleteName()
-		m["RepoName"] = p.RepoName()
-		m["FileName"] = p.FileName()
-		data[i] = m
-	}
-	writeResponse(w, conf.Map{
-		"data":     data,
-		"size":     util.FormatSize(total_size),
-		"filter":   filters,
-		"sort":     sorter,
-		"paginate": paginator,
-	})
 }
 
 func mirrorList(w http.ResponseWriter, r *http.Request) {
-	mirrors := db.LoadMirrors()
-	writeResponse(w, mirrors)
+	var countries []db.Country
+	db.All("mirror", &countries)
+	writeResponse(w, countries)
 }
 
 func loadAll(w http.ResponseWriter, r *http.Request) {
 	rnames := db.GetRepoNames()
-	gits := db.LoadGits()
 	repos := make([]conf.Map, len(rnames))
 	for i, n := range rnames {
-		repo := db.LoadRepo(n)
+		var repo []db.Package
+		db.All(n, &repo)
 		r := conf.Map{
 			"repository_name": n,
-			"num_package":     repo.Len(),
+			"num_package":     len(repo),
 		}
 		packages := conf.Map{}
 		var lastUpdate time.Time
-		for _, p := range *repo {
-			g := p.GetGit()
-			if g == nil {
-				g = getGit(p)
-				if g.Repository != "" && g.Folder != "" {
+		for _, p := range repo {
+			var g db.Git
+			if !p.GetGit(&g) {
+				if getGit(p, &g) {
 					g.Name = p.Name
-					gits.Add(g)
-					if err := db.StoreGits(); err != nil && conf.Debug() {
-						util.Println("\033[1;31mFailed to store git database\033[m")
-					}
+					db.Add("git", g, true)
 				}
 			}
 			gurl := conf.Read("main.giturl") + g.Repository
@@ -611,11 +482,11 @@ func refresh(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "all"
 	}
-	loadDB(name)
+	db.Load(name, true)
 }
 
 func Serve([]string) {
-	loadDB("all")
+	db.Load("all")
 	port := ":" + conf.Read("api.port")
 	http.HandleFunc("/flag/list", flagList)
 	http.HandleFunc("/flag/add", flagAdd)

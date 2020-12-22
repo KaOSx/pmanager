@@ -13,8 +13,8 @@ import (
 
 type fs struct {
 	format func(string) (interface{}, bool)
-	filter map[string]func(interface{}) func(*db.Flag) bool
-	cmp    func(*db.Flag, *db.Flag) int
+	filter map[string]func(interface{}) func(db.Flag) bool
+	cmp    func(db.Flag, db.Flag) int
 }
 
 const help = `Available commands:
@@ -77,21 +77,21 @@ var mfs = map[string]fs{
 			}
 			return time.Date(y, time.Month(m), d, h, n, 0, 0, time.Local), true
 		},
-		filter: map[string]func(interface{}) func(*db.Flag) bool{
-			">": func(e interface{}) func(f *db.Flag) bool {
-				return func(f *db.Flag) bool { return f.Date.After(e.(time.Time)) }
+		filter: map[string]func(interface{}) func(db.Flag) bool{
+			">": func(e interface{}) func(f db.Flag) bool {
+				return func(f db.Flag) bool { return f.Date.After(e.(time.Time)) }
 			},
-			"<": func(e interface{}) func(f *db.Flag) bool {
-				return func(f *db.Flag) bool { return f.Date.Before(e.(time.Time)) }
+			"<": func(e interface{}) func(f db.Flag) bool {
+				return func(f db.Flag) bool { return f.Date.Before(e.(time.Time)) }
 			},
-			"=": func(e interface{}) func(f *db.Flag) bool {
-				return func(f *db.Flag) bool { return f.Date.Equal(e.(time.Time)) }
+			"=": func(e interface{}) func(f db.Flag) bool {
+				return func(f db.Flag) bool { return f.Date.Equal(e.(time.Time)) }
 			},
-			"<>": func(e interface{}) func(f *db.Flag) bool {
-				return func(f *db.Flag) bool { return !f.Date.Equal(e.(time.Time)) }
+			"<>": func(e interface{}) func(f db.Flag) bool {
+				return func(f db.Flag) bool { return !f.Date.Equal(e.(time.Time)) }
 			},
 		},
-		cmp: func(f1, f2 *db.Flag) int {
+		cmp: func(f1, f2 db.Flag) int {
 			if f1.Date.Equal(f2.Date) {
 				return 0
 			}
@@ -102,30 +102,30 @@ var mfs = map[string]fs{
 		},
 	},
 	"email": fs{
-		filter: map[string]func(interface{}) func(*db.Flag) bool{
-			"=": func(e interface{}) func(*db.Flag) bool { return func(f *db.Flag) bool { return f.Email == e.(string) } },
-			"~": func(e interface{}) func(*db.Flag) bool {
-				return func(f *db.Flag) bool { return strings.Contains(f.Email, e.(string)) }
+		filter: map[string]func(interface{}) func(db.Flag) bool{
+			"=": func(e interface{}) func(db.Flag) bool { return func(f db.Flag) bool { return f.Email == e.(string) } },
+			"~": func(e interface{}) func(db.Flag) bool {
+				return func(f db.Flag) bool { return strings.Contains(f.Email, e.(string)) }
 			},
 		},
-		cmp: func(f1, f2 *db.Flag) int { return util.CompareString(f1.Email, f2.Email) },
+		cmp: func(f1, f2 db.Flag) int { return util.CompareString(f1.Email, f2.Email) },
 	},
 	"repo": fs{
-		filter: map[string]func(interface{}) func(*db.Flag) bool{
-			"=": func(e interface{}) func(*db.Flag) bool {
-				return func(f *db.Flag) bool { return f.Repository == e.(string) }
+		filter: map[string]func(interface{}) func(db.Flag) bool{
+			"=": func(e interface{}) func(db.Flag) bool {
+				return func(f db.Flag) bool { return f.Repository == e.(string) }
 			},
 		},
-		cmp: func(f1, f2 *db.Flag) int { return util.CompareString(f1.Repository, f2.Repository) },
+		cmp: func(f1, f2 db.Flag) int { return util.CompareString(f1.Repository, f2.Repository) },
 	},
 	"package": fs{
-		filter: map[string]func(interface{}) func(*db.Flag) bool{
-			"=": func(e interface{}) func(*db.Flag) bool { return func(f *db.Flag) bool { return f.Name == e.(string) } },
-			"~": func(e interface{}) func(*db.Flag) bool {
-				return func(f *db.Flag) bool { return strings.Contains(f.Name, e.(string)) }
+		filter: map[string]func(interface{}) func(db.Flag) bool{
+			"=": func(e interface{}) func(db.Flag) bool { return func(f db.Flag) bool { return f.Name == e.(string) } },
+			"~": func(e interface{}) func(db.Flag) bool {
+				return func(f db.Flag) bool { return strings.Contains(f.Name, e.(string)) }
 			},
 		},
-		cmp: func(f1, f2 *db.Flag) int { return util.CompareString(f1.CompleteName(), f2.CompleteName()) },
+		cmp: func(f1, f2 db.Flag) int { return util.CompareString(f1.CompleteName(), f2.CompleteName()) },
 	},
 	"flagged": fs{
 		format: func(s string) (e interface{}, ok bool) {
@@ -135,13 +135,13 @@ var mfs = map[string]fs{
 			}
 			return
 		},
-		filter: map[string]func(interface{}) func(*db.Flag) bool{
-			"=": func(e interface{}) func(*db.Flag) bool { return func(f *db.Flag) bool { return f.Flagged == e.(bool) } },
+		filter: map[string]func(interface{}) func(db.Flag) bool{
+			"=": func(e interface{}) func(db.Flag) bool { return func(f db.Flag) bool { return f.Flagged == e.(bool) } },
 		},
 	},
 }
 
-var flags *db.Flaglist
+var flags *[]db.Flag
 
 func getRange(arg string) (rg []int, all bool) {
 	if all = arg == "all"; all {
@@ -185,7 +185,7 @@ func getIds(args []string) (rg []int) {
 	}
 	sort.Ints(ids)
 	rg = make([]int, 0, len(ids))
-	l := flags.Len()
+	l := len(*flags)
 	for _, i := range ids {
 		if i > 0 && i <= l && (len(rg) == 0 || rg[len(rg)-1] != i) {
 			rg = append(rg, i)
@@ -194,7 +194,7 @@ func getIds(args []string) (rg []int) {
 	return
 }
 
-func parseNextArg(args []string) (f func(*db.Flag) bool, c func(f1, f2 *db.Flag) int, next []string, err error) {
+func parseNextArg(args []string) (f func(db.Flag) bool, c func(f1, f2 db.Flag) int, next []string, err error) {
 	if args[0] == "sortby" {
 		if len(args) < 2 {
 			err = fmt.Errorf("Missing field after sortby")
@@ -221,7 +221,7 @@ func parseNextArg(args []string) (f func(*db.Flag) bool, c func(f1, f2 *db.Flag)
 		next = args[n:]
 		c = e.cmp
 		if !asc {
-			c = func(f1, f2 *db.Flag) int { return -e.cmp(f1, f2) }
+			c = func(f1, f2 db.Flag) int { return -e.cmp(f1, f2) }
 		}
 		return
 	}
@@ -254,10 +254,10 @@ func parseNextArg(args []string) (f func(*db.Flag) bool, c func(f1, f2 *db.Flag)
 }
 
 func getFlag(args []string) {
-	var filters []func(*db.Flag) bool
-	var comparators []func(f1, f2 *db.Flag) int
-	var f func(*db.Flag) bool
-	var c func(f1, f2 *db.Flag) int
+	var filters []db.MatchFunc
+	var comparators []db.CmpFunc
+	var f func(db.Flag) bool
+	var c func(f1, f2 db.Flag) int
 	var e error
 	for len(args) > 0 {
 		f, c, args, e = parseNextArg(args)
@@ -266,13 +266,17 @@ func getFlag(args []string) {
 			return
 		}
 		if f != nil {
-			filters = append(filters, f)
+			filters = append(filters, db.FlagFilter2MatchFunc(f))
 		}
 		if c != nil {
-			comparators = append(comparators, c)
+			comparators = append(comparators, db.FlagCmp2CmpFunc(c))
 		}
 	}
-	flags = db.LoadFlags(true).Filter(filters...).Sort(comparators...)
+	var search db.Request
+	search = search.SetFilter(filters...).SetSort(comparators...)
+	db.Load("flag", true)
+	flags = new([]db.Flag)
+	db.FindAll("flag", flags, search)
 	for i, f := range *flags {
 		flagged := "(outdated)"
 		if !f.Flagged {
@@ -291,6 +295,7 @@ func changeFlag(flagged bool, args []string) {
 		fmt.Println("You need to launch the command list before")
 		return
 	}
+
 	rg := getIds(args)
 	action := "flag"
 	if !flagged {
@@ -300,31 +305,39 @@ func changeFlag(flagged bool, args []string) {
 		fmt.Println("Nothing to", action)
 		return
 	}
+
 	srg := make([]string, len(rg))
 	for i, r := range rg {
 		srg[i] = strconv.Itoa(r)
 	}
-	if shell.GetBool(fmt.Sprintf("%s %s?", action, strings.Join(srg, ", ")), true) {
-		filter := func(f0 *db.Flag) func(*db.Flag) bool {
-			return func(f *db.Flag) bool {
-				return f0.RepoName() == f.RepoName() && f0.Date.Equal(f.Date)
-			}
-		}
-		nfl := db.LoadFlags(true)
-		for _, i := range rg {
-			f0 := (*flags)[i-1]
-			flgs := nfl.Filter(filter(f0))
-			for _, f := range *flgs {
-				f.Flagged = flagged
-			}
-			fmt.Printf("%s %sged\n", f0.RepoName(), action)
-		}
-		db.StoreFlags()
-		util.Refresh("flag")
-		flags = nil
-	} else {
+
+	if !shell.GetBool(fmt.Sprintf("%s %s?", action, strings.Join(srg, ", ")), true) {
 		fmt.Println("cancel…")
+		return
 	}
+
+	mflags := make(map[db.Flag]bool)
+	for _, i := range rg {
+		mflags[(*flags)[i-1]] = true
+	}
+	filter := db.FlagFilter2MatchFunc(func(f db.Flag) bool { return mflags[f] })
+	repl := func(e db.Data) db.Data {
+		f := e.(db.Flag)
+		if flagged {
+			return f.Flag()
+		}
+		return f.Unflag()
+	}
+
+	var search db.Request
+	search = search.SetFilter(filter).SetReplace(repl)
+	db.Replace("flag", search, true)
+	util.Refresh("flag")
+	for _, i := range rg {
+		f := (*flags)[i-1]
+		fmt.Printf("%s %sged\n", f.RepoName(), action)
+	}
+	flags = nil
 }
 
 func deleteFlag(args []string) {
@@ -332,27 +345,31 @@ func deleteFlag(args []string) {
 		fmt.Println("You need to launch the command list before")
 		return
 	}
+
 	rg := getIds(args)
 	if len(rg) == 0 {
 		fmt.Println("Nothing to delete")
 		return
 	}
+
 	srg := make([]string, len(rg))
 	for i, r := range rg {
 		srg[i] = strconv.Itoa(r)
 	}
-	if shell.GetBool(fmt.Sprintf("delete %s?", strings.Join(srg, ", ")), true) {
-		nfl := db.LoadFlags(true)
-		for _, i := range rg {
-			f0 := (*flags)[i-1]
-			nfl.Remove(f0)
-			fmt.Println(f0.RepoName(), "deleted")
-		}
-		db.StoreFlags()
-		util.Refresh("flag")
-		flags = nil
-	} else {
+
+	if !shell.GetBool(fmt.Sprintf("delete %s?", strings.Join(srg, ", ")), true) {
 		fmt.Println("cancel…")
+	}
+
+	dflags := make([]db.Flag, len(rg))
+	for i, idx := range rg {
+		dflags[i] = (*flags)[idx-1]
+	}
+
+	db.Remove("flag", dflags)
+	util.Refresh("flag")
+	for _, f := range dflags {
+		fmt.Println(f.RepoName(), "deleted")
 	}
 }
 

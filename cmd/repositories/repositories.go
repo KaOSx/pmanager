@@ -13,17 +13,22 @@ import (
 	"strings"
 )
 
-func basedir() string               { return conf.Read("repository.basedir") }
-func ext() string                   { return "." + conf.Read("repository.extension") }
-func rfilespath(repo string) string { return path.Join(basedir(), repo, repo+ext()) }
-func excludes() map[string]bool {
-	excl := conf.ReadArray("repository.exclude")
-	out := make(map[string]bool)
-	for _, e := range excl {
-		out[e] = true
+var (
+	basedir  string
+	ext      string
+	excludes map[string]bool
+)
+
+func init() {
+	basedir = conf.Read("repository.basedir")
+	ext = "." + conf.Read("repository.extension")
+	excludes = make(map[string]bool)
+	for _, e := range conf.ReadArray("repository.exclude") {
+		excludes[e] = true
 	}
-	return out
 }
+
+func rfilespath(repo string) string { return path.Join(basedir, repo, repo+ext) }
 
 func scanDesc(sc *bufio.Scanner, p *db.Package) {
 	var section string
@@ -93,24 +98,18 @@ func scanFiles(sc *bufio.Scanner, p *db.Package) {
 	}
 }
 
-func getRepo(name string) (repo db.Packagelist, err error) {
+func getRepo(name string) (repo []db.Package, err error) {
 	rpath := rfilespath(name)
-	if conf.Debug() {
-		util.Printf("Extracting %s\n", rpath)
-	}
+	util.Debugf("Extracting %s\n", rpath)
 	file, err := os.Open(rpath)
 	if err != nil {
-		if conf.Debug() {
-			util.Printf("\033[1;31mFailed to extract %s\033[m\n", rpath)
-		}
+		util.Debugf("\033[1;31mFailed to extract %s\033[m\n", rpath)
 		return
 	}
 	defer file.Close()
 	gf, err := util.ReadGZ(file)
 	if err != nil {
-		if conf.Debug() {
-			util.Printf("\033[1;31mFailed to extract %s\033[m\n", rpath)
-		}
+		util.Debugf("\033[1;31mFailed to extract %s\033[m\n", rpath)
 		return
 	}
 	defer gf.Close()
@@ -134,9 +133,8 @@ func getRepo(name string) (repo db.Packagelist, err error) {
 		pn := path.Base(strings.TrimSuffix(hdr.Name, suffix))
 		p, ok := packages[pn]
 		if !ok {
-			p = new(db.Package)
-			p.Repository = name
-			repo.Add(p)
+			repo = append(repo, db.Package{Repository: name})
+			p = &repo[len(repo)-1]
 			packages[pn] = p
 		}
 		var buf bytes.Buffer
@@ -150,21 +148,18 @@ func getRepo(name string) (repo db.Packagelist, err error) {
 			scanFiles(sc, p)
 		}
 	}
-	if conf.Debug() {
-		util.Printf("Extract of %s done! (%d packages)\n", name, len(repo))
-	}
+	util.Debugf("Extract of %s done! (%d packages)\n", name, len(repo))
 	return
 }
 
 func getRepoNames() (repo []string, err error) {
-	files, err := ioutil.ReadDir(basedir())
+	files, err := ioutil.ReadDir(basedir)
 	if err != nil {
 		return
 	}
-	excl := excludes()
 	for _, f := range files {
 		fn := f.Name()
-		if f.IsDir() && !excl[fn] {
+		if f.IsDir() && !excludes[fn] {
 			repo = append(repo, fn)
 		}
 	}
@@ -172,7 +167,8 @@ func getRepoNames() (repo []string, err error) {
 }
 
 func Update(repos []string) {
-	if len(repos) == 0 {
+	var refresh_all bool
+	if refresh_all = len(repos) == 0; refresh_all {
 		var err error
 		if repos, err = getRepoNames(); err != nil {
 			util.Fatalln(err)
@@ -181,16 +177,16 @@ func Update(repos []string) {
 	for _, n := range repos {
 		repo, err := getRepo(n)
 		if err == nil {
-			db.SetRepo(n, &repo)
-		} else if conf.Debug() {
-			util.Printf("Failed to load repo [%s]: %v", n, err)
+			db.Set(n, repo)
+		} else {
+			util.Debugf("Failed to load repo [%s]: %v", n, err)
 		}
 	}
-	errs := db.StorePackages()
-	util.Refresh("package")
-	if conf.Debug() {
-		for _, err := range errs {
-			util.Println(err)
+	if refresh_all {
+		util.Refresh("package")
+	} else {
+		for _, r := range repos {
+			util.Refresh(r)
 		}
 	}
 }
