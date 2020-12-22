@@ -7,8 +7,24 @@ import (
 	"strings"
 )
 
+var (
+	Args []string
+)
+
 func init() {
 	Load()
+	Args = make([]string, 1, len(os.Args))
+	Args[0] = os.Args[0]
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--debug":
+			config["main.debug"] = true
+		case "--no-debug":
+			config["main.debug"] = false
+		default:
+			Args = append(Args, arg)
+		}
+	}
 }
 
 const (
