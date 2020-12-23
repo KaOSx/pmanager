@@ -13,7 +13,7 @@ function render()
         'repo' => $repo,
         'name' => $name,
     ]);
-    if ($result === false || !isset($result['data'])) {
+    if ($result === false || !isset($result['data']) || !is_array($result['data'])) {
         echo 'Package “'.$repo.'/'.$name.'” not found.';
         return;
     }

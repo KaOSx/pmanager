@@ -28,9 +28,13 @@ function render()
         echo 'Internal servor error';
         return;
     }
-    $packages      = $result['data'];
-    $pagination    = $result['paginate'];
-    $totalSize     = $result['size'];
+    $packages      = isset($result['data']) && is_array($result['data']) ? $result['data'] : [];
+    $pagination    = isset($result['paginate']) ? $result['paginate'] : [
+        'total' => '',
+        'page'  => '',
+        'last'  => '',
+    ];
+    $totalSize     = isset($result['size']) ? $result['size'] : '';
     $totalPackages = $pagination['total'];
     $current       = $pagination['page'];
     $last          = $pagination['last'];
