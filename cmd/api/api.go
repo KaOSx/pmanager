@@ -349,8 +349,20 @@ func searchPackages(w http.ResponseWriter, r *http.Request, table string) {
 	var packages []db.Package
 	db.Paginate(table, &packages, search, pagination)
 
+	data := make([]conf.Map, len(packages))
+	for i, p := range packages {
+		m := util.ToMap(p)
+		m.Delete("Licenses", "Groups", "Depends", "MakeDepends", "OptDepends", "Files")
+		m["PackageSize"] = util.FormatSize(m.GetInt("PackageSize"))
+		m["InstalledSize"] = util.FormatSize(m.GetInt("InstalledSize"))
+		m["CompleteName"] = p.CompleteName()
+		m["RepoName"] = p.RepoName()
+		m["FileName"] = p.FileName()
+		data[i] = m
+	}
+
 	writeResponse(w, conf.Map{
-		"data":     packages,
+		"data":     data,
 		"filter":   mfilter,
 		"sort":     msort,
 		"paginate": pagination,
