@@ -352,7 +352,7 @@ func searchPackages(w http.ResponseWriter, r *http.Request, table string) {
 	data := make([]conf.Map, len(packages))
 	var totalSize int64
 	for i, p := range packages {
-		total_size += p.PackageSize
+		totalSize += p.PackageSize
 		m := util.ToMap(p)
 		m.Delete("Licenses", "Groups", "Depends", "MakeDepends", "OptDepends", "Files")
 		m["PackageSize"] = util.FormatSize(m.GetInt("PackageSize"))
