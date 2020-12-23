@@ -19,11 +19,11 @@ function render()
     }
     $package = $result['data'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $repo    = $package['Repository'];
-        $pname   = $package['Name'];
-        $version = $package['Version'];
-        $email   = (isset($_POST['email'])) ? $_POST['email'] : false;
-        $comment = (isset($_POST['comment'])) ? $_POST['comment'] : false;
+        $repo    = isset($package['Repository']) ? $package['Repository'] : '';
+        $pname   = isset($package['Name']) ? $package['Name'] : '';
+        $version = isset($package['Version']) ? $package['Version'] : '';
+        $email   = isset($_POST['email']) ? $_POST['email'] : false;
+        $comment = isset($_POST['comment']) ? $_POST['comment'] : false;
         if (!$package['Flagged'] && $email && $comment) {
             $comment = str_replace('<br>', "\n", $comment);
             $comment = str_replace("\r\n", "\n", $comment);

@@ -15,7 +15,7 @@ if ($result === false) {
     echo 'Internal server error';
     return;
 }
-$packages = $result['data'];
+$packages = isset($result['data']) && is_array($result['data']) ? $result['data'] : [];
 ?>
 
 <html>
