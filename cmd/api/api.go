@@ -427,6 +427,7 @@ func repoList(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, conf.Map{"data": nil}, http.StatusNotFound)
 		return
 	}
+	searchPackages(w, r, repo)
 }
 
 func mirrorList(w http.ResponseWriter, r *http.Request) {
