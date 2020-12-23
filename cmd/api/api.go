@@ -350,7 +350,9 @@ func searchPackages(w http.ResponseWriter, r *http.Request, table string) {
 	db.Paginate(table, &packages, search, pagination)
 
 	data := make([]conf.Map, len(packages))
+	var totalSize int64
 	for i, p := range packages {
+		total_size += p.PackageSize
 		m := util.ToMap(p)
 		m.Delete("Licenses", "Groups", "Depends", "MakeDepends", "OptDepends", "Files")
 		m["PackageSize"] = util.FormatSize(m.GetInt("PackageSize"))
@@ -366,6 +368,7 @@ func searchPackages(w http.ResponseWriter, r *http.Request, table string) {
 		"filter":   mfilter,
 		"sort":     msort,
 		"paginate": pagination,
+		"size":     util.FormatSize(totalSize),
 	})
 }
 
