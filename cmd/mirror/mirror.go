@@ -2,9 +2,9 @@ package mirror
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"pmanager/conf"
@@ -110,9 +110,10 @@ func getMd5(mirror, repo string) (md5sum string, err error) {
 			err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
 			util.Debugf("\033[1;mfailed to check md5 from %s: %s\n", url, err)
 		} else {
-			var b []byte
-			if b, err = ioutil.ReadAll(resp.Body); err == nil {
-				md5sum = fmt.Sprintf("%x", md5.Sum(b))
+			buf := bufio.NewReader(resp.Body)
+			var b bytes.Buffer
+			if _, err = buf.WriteTo(&b); err == nil {
+				md5sum = fmt.Sprintf("%x", md5.Sum(b.Bytes()))
 			}
 			util.Debugf("check md5 from %s successful\n", url)
 		}

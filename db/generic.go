@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"pmanager/conf"
@@ -58,7 +57,7 @@ func mkdir(fp string) error {
 
 func GetRepoNames() (names []string) {
 	rp := repopath()
-	files, err := ioutil.ReadDir(rp)
+	files, err := util.ReadDir(rp)
 	if err != nil {
 		util.Debugf("\033[1;31mNo repo database found in %s\033[m\n", rp)
 		return

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"pmanager/conf"
@@ -153,7 +152,7 @@ func getRepo(name string) (repo []db.Package, err error) {
 }
 
 func getRepoNames() (repo []string, err error) {
-	files, err := ioutil.ReadDir(basedir)
+	files, err := util.ReadDir(basedir)
 	if err != nil {
 		return
 	}

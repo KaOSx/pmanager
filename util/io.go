@@ -73,3 +73,12 @@ func Fatalln(v ...interface{}) {
 func Fatalf(f string, v ...interface{}) {
 	Logger().Fatalf(f, v...)
 }
+
+func ReadDir(dirname string) (files []os.FileInfo, err error) {
+	var dir *os.File
+	if dir, err = os.Open(dirname); err != nil {
+		return
+	}
+	defer dir.Close()
+	return dir.Readdir(-1)
+}
