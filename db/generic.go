@@ -57,7 +57,7 @@ func mkdir(fp string) error {
 
 func GetRepoNames() (names []string) {
 	rp := repopath()
-	files, err := util.ReadDir(rp)
+	files, err := os.ReadDir(rp)
 	if err != nil {
 		util.Debugf("\033[1;31mNo repo database found in %s\033[m\n", rp)
 		return

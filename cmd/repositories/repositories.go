@@ -152,7 +152,7 @@ func getRepo(name string) (repo []db.Package, err error) {
 }
 
 func getRepoNames() (repo []string, err error) {
-	files, err := util.ReadDir(basedir)
+	files, err := os.ReadDir(basedir)
 	if err != nil {
 		return
 	}
