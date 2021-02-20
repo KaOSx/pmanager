@@ -265,7 +265,7 @@ func (dl Datalist) Slice(limit, offset int64) Datalist {
 	if offset >= 0 {
 		dl = dl[offset:]
 	}
-	if limit < l {
+	if limit < len(dl) {
 		dl = dl[:limit]
 	}
 	return dl
