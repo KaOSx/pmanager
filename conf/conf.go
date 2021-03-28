@@ -54,7 +54,7 @@ var config = Map{
 	"smtp.send_from":       "user@example.com",
 	"smtp.use_formspree":   false,
 	"mirror.main_mirror":   "http://kaosx.tk/repo/",
-	"mirror.mirrorlist":    "/etc/pacman.d/mirrorlist",
+	"mirror.mirrorlist":    "https://raw.githubusercontent.com/KaOSx/core/master/pacman-mirrorlist/mirrorlist",
 	"mirror.pacmanconf":    "/etc/pacman.conf",
 }
 

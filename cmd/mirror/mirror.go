@@ -2,6 +2,7 @@ package mirror
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -23,14 +24,31 @@ func init() {
 	mainMirrorName = conf.Read("mirror.main_mirror")
 }
 
-func getAvailableRepos() (repos []string, err error) {
-	var f *os.File
-	f, err = os.Open(conf.Read("mirror.pacmanconf"))
+func readMirrorFile() (data bytes.Buffer, err error) {
+	uri := conf.Read("mirror.pacmanconf")
+	var f io.ReadCloser
+	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+		var resp *http.Response
+		if resp, err = http.Get(uri); err == nil {
+			f = resp.Body
+		}
+	} else {
+		f, err = os.Open(uri)
+	}
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	sc := bufio.NewScanner(f)
+	_, err = io.Copy(&data, f)
+	return
+}
+
+func getAvailableRepos() (repos []string, err error) {
+	var data bytes.Buffer
+	if data, err = readMirrorFile(); err != nil {
+		return
+	}
+	sc := bufio.NewScanner(&data)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		if !strings.HasPrefix(line, "[") || !strings.HasSuffix(line, "]") {
