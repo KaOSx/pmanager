@@ -24,8 +24,7 @@ func init() {
 	mainMirrorName = conf.Read("mirror.main_mirror")
 }
 
-func readMirrorFile() (data bytes.Buffer, err error) {
-	uri := conf.Read("mirror.pacmanconf")
+func readUri(uri string) (data bytes.Buffer, err error) {
 	var f io.ReadCloser
 	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 		var resp *http.Response
@@ -45,7 +44,7 @@ func readMirrorFile() (data bytes.Buffer, err error) {
 
 func getAvailableRepos() (repos []string, err error) {
 	var data bytes.Buffer
-	if data, err = readMirrorFile(); err != nil {
+	if data, err = readUri(conf.Read("mirror.pacmanconf")); err != nil {
 		return
 	}
 	sc := bufio.NewScanner(&data)
@@ -72,14 +71,12 @@ func newRepos(repos []string) []db.Repo {
 }
 
 func getAvailableCountries(repos []string) (countries []db.Country, err error) {
-	var f *os.File
-	f, err = os.Open(conf.Read("mirror.mirrorlist"))
-	if err != nil {
+	var data bytes.Buffer
+	if data, err = readUri(conf.Read("mirror.mirrorlist")); err != nil {
 		return
 	}
-	defer f.Close()
 	var country *db.Country
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(&data)
 	for sc.Scan() {
 		line := sc.Text()
 		if i := strings.Index(line, "Server ="); i >= 0 {
