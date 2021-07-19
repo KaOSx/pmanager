@@ -102,19 +102,9 @@ func getGit(p db.Package, git *db.Git) (ok bool) {
 		return
 	}
 	defer f.Close()
-	var xf io.ReadCloser
-	if strings.HasSuffix(gpath, ".xz") {
-		xf, err = util.ReadXZ(f)
-		if err != nil {
-			util.Debugf("\033[1;31mFailed to xunzip %s: %s\033[m\n", gpath, err)
-		}
-	} else {
-		xf, err = util.ReadZST(f)
-		if err != nil {
-			util.Debugf("\033[1;31mFailed to zstd -d %s: %s\033[m\n", gpath, err)
-		}
-	}
+	xf, err := util.ReadZST(f)
 	if err != nil {
+		util.Debugf("\033[1;31mFailed to zstd -d %s: %s\033[m\n", gpath, err)
 		return
 	}
 	defer xf.Close()

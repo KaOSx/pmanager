@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/klauspost/compress/zstd"
-	"github.com/xi2/xz"
 )
 
 type FakeReadCloser struct {
@@ -14,11 +13,6 @@ type FakeReadCloser struct {
 }
 
 func (r FakeReadCloser) Close() error { return nil }
-
-func ReadXZ(r io.Reader) (rc FakeReadCloser, err error) {
-	rc.Reader, err = xz.NewReader(r, 0)
-	return rc, err
-}
 
 func ReadGZ(r io.Reader) (*gzip.Reader, error) { return gzip.NewReader(r) }
 
