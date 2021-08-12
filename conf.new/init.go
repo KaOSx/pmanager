@@ -1,15 +1,13 @@
 package conf
 
 import (
+	"io"
 	"os"
 	"path"
 	"pmanager/log"
-)
 
-func FileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !os.IsNotExist(err)
-}
+	"pmanager/util.new/resource"
+)
 
 func loadDefaultConf() {
 	f, err := model.Open("model/pmanager.conf")
@@ -21,13 +19,12 @@ func loadDefaultConf() {
 }
 
 func loadCustomConf(cnfPath string) (c *configuration, err error) {
-	var f *os.File
-	if f, err = os.Open(cnfPath); err != nil {
+	var f io.Reader
+	if f, err = resource.Open(cnfPath); err != nil {
 		log.Errorf("Failed to read the configuration file: %s\n", err)
-		return
+	} else {
+		c = newConfiguration(f)
 	}
-	defer f.Close()
-	c = newConfiguration(f)
 	return
 }
 
@@ -50,8 +47,8 @@ func init() {
 	log.Init(cnf.string("main.logfile"))
 	cnfPath := path.Join(ConfDir, ConfFile)
 	var modified bool
-	exists := FileExists(cnfPath)
-	if !exists {
+	exists := resource.IsFile(cnfPath)
+	if exists {
 		if customCnf, err := loadCustomConf(cnfPath); err == nil {
 			if modified = cnf.fusion(customCnf); modified {
 				log.Init(cnf.string("main.logfile"))

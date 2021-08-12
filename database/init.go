@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"pmanager/conf.new"
 )
 
 type Git struct {
@@ -73,9 +72,9 @@ type Country struct {
 	Mirrors []Mirror
 }
 
-func Load() {
+func Load(uri string) {
 	var err error
-	if dbsingleton, err = newDb(load(conf.String("database.uri"))); err != nil {
+	if dbsingleton, err = newDb(load(uri)); err != nil {
 		log.Fatalf("Failed to load the database: %s\n", err)
 	}
 	err = dbsingleton.AutoMigrate(
