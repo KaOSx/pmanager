@@ -51,7 +51,7 @@ func IsDir(uri string) bool {
 	return false
 }
 
-func Open(uri string) (data *bytes.Buffer, err error) {
+func Open(uri string) (data io.Reader, err error) {
 	var f io.ReadCloser
 	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 		var resp *http.Response
@@ -63,8 +63,10 @@ func Open(uri string) (data *bytes.Buffer, err error) {
 	}
 	if err == nil {
 		defer f.Close()
-		data = new(bytes.Buffer)
-		_, err = io.Copy(data, f)
+		var buf bytes.Buffer
+		if _, err = io.Copy(&buf, f); err == nil {
+			data = &buf
+		}
 	}
 	return
 }

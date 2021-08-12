@@ -56,6 +56,7 @@ type Repo struct {
 	Name     string
 	Sync     bool
 	MirrorID uint
+	md5      string `gorm:"-"`
 }
 
 type Mirror struct {
