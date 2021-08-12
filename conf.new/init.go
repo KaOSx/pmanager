@@ -44,14 +44,16 @@ func saveConf(cnfPath string) {
 
 func init() {
 	loadDefaultConf()
-	log.Init(cnf.string("main.logfile"))
+	Debug = cnf.bool("main.debug")
+	log.Init(cnf.string("main.logfile"), Debug)
 	cnfPath := path.Join(ConfDir, ConfFile)
 	var modified bool
 	exists := resource.IsFile(cnfPath)
 	if exists {
 		if customCnf, err := loadCustomConf(cnfPath); err == nil {
 			if modified = cnf.fusion(customCnf); modified {
-				log.Init(cnf.string("main.logfile"))
+				Debug = cnf.bool("main.debug")
+				log.Init(cnf.string("main.logfile"), Debug)
 			}
 		} else {
 			modified = true

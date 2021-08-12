@@ -19,6 +19,7 @@ const (
 
 var (
 	logsingleton *logger
+	dbg          bool
 )
 
 type wc struct {
@@ -62,7 +63,8 @@ func (l *logger) close() {
 	l.Unlock()
 }
 
-func Init(logpath string) {
+func Init(logpath string, debug bool) {
+	dbg = debug
 	logsingleton = &logger{
 		logpath: logpath,
 	}
@@ -129,4 +131,16 @@ func Fatalln(args ...interface{}) {
 	logsingleton.open(cFatal)
 	defer logsingleton.close()
 	logsingleton.Fatalln(args...)
+}
+
+func Debugln(v ...interface{}) {
+	if dbg {
+		Println(v...)
+	}
+}
+
+func Debugf(f string, v ...interface{}) {
+	if dbg {
+		Printf(f, v...)
+	}
 }
