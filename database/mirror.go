@@ -187,8 +187,11 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string, debug bool) (c
 	return
 }
 
-func updateMirrors(countries []Country) error {
-	return dbsingleton.Transaction(func(tx *gorm.DB) error {
+func updateMirrors(countries []Country) func(*gorm.DB) error {
+	return func(tx *gorm.DB) error {
+		if len(countries) == 0 {
+			return nil
+		}
 		if err := tx.Where("1 = 1").Unscoped().Delete(&Repo{}).Error; err != nil {
 			return err
 		}
@@ -199,5 +202,5 @@ func updateMirrors(countries []Country) error {
 			return err
 		}
 		return tx.Create(&countries).Error
-	})
+	}
 }

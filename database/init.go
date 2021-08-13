@@ -51,6 +51,32 @@ type Package struct {
 	Git           Git
 }
 
+func (p Package) FullName() string {
+	return p.Repository + "/" + p.Name
+}
+
+func (p1 Package) Equal(p2 Package) bool {
+	return p1.ID == p2.ID &&
+		p1.Repository == p2.Repository &&
+		p1.Name == p2.Name &&
+		p1.Version == p2.Version &&
+		p1.Arch == p2.Arch &&
+		p1.Description == p2.Description &&
+		p1.PackageSize == p2.PackageSize &&
+		p1.InstalledSize == p2.InstalledSize &&
+		p1.URL == p2.URL &&
+		p1.Licenses.Equal(p2.Licenses) &&
+		p1.Groups.Equal(p2.Groups) &&
+		p1.BuildDate.Equal(p2.BuildDate) &&
+		p1.Depends.Equal(p2.Depends) &&
+		p1.Files.Equal(p2.Files) &&
+		p1.Md5Sum == p2.Md5Sum &&
+		p1.Sha256Sum == p2.Sha256Sum &&
+		p1.Filename == p2.Filename &&
+		p1.FlagID == p2.FlagID &&
+		p1.GitID == p2.GitID
+}
+
 type Repo struct {
 	gorm.Model
 	Name     string

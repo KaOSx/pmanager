@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -31,11 +32,16 @@ func newDb(connector gorm.Dialector, tables ...interface{}) (dbl *database, err 
 type SqlSlice []string
 
 func (sl *SqlSlice) Scan(v interface{}) error {
-	bytes, err := json.Marshal(v)
-	if err == nil {
-		err = json.Unmarshal(bytes, sl)
+	var bytes []byte
+	switch v.(type) {
+	case []byte:
+		bytes = v.([]byte)
+	case string:
+		bytes = []byte(v.(string))
+	default:
+		return fmt.Errorf("%v is not convertible to database.SqlSlice", v)
 	}
-	return err
+	return json.Unmarshal(bytes, sl)
 }
 
 func (SqlSlice) GormDataType() string {
@@ -49,4 +55,16 @@ func (sl SqlSlice) Value() (driver.Value, error) {
 		return nil, err
 	}
 	return v.String(), nil
+}
+
+func (sl1 SqlSlice) Equal(sl2 SqlSlice) bool {
+	if len(sl1) != len(sl2) {
+		return false
+	}
+	for i, e := range sl1 {
+		if sl2[i] != e {
+			return false
+		}
+	}
+	return true
 }
