@@ -7,8 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string, debug bool) {
-	countries, err := getMirrors(pacmanConf, pacmanMirrors, mainMirrorName, debug)
+func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) {
+	countries, err := getMirrors(pacmanConf, pacmanMirrors, mainMirrorName)
 	if err != nil {
 		log.Fatalf("Failed to get mirrors: %s\n", err)
 	}
@@ -19,7 +19,7 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string, debug bool)
 	}
 }
 
-func UpdatePackages(base, extension string, excludes []string, debug bool) {
+func UpdatePackages(base, extension string, excludes []string) {
 	packages, err := getPackages(base, extension, excludes)
 	if err != nil {
 		log.Fatalf("Failed to get packages: %s\n", err)
@@ -40,7 +40,6 @@ func UpdateAll(
 	base,
 	extension string,
 	excludes []string,
-	debug bool,
 ) {
 	var wg sync.WaitGroup
 	var err error
@@ -50,7 +49,7 @@ func UpdateAll(
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		if countries, err = getMirrors(pacmanConf, pacmanMirrors, mainMirrorName, debug); err != nil {
+		if countries, err = getMirrors(pacmanConf, pacmanMirrors, mainMirrorName); err != nil {
 			log.Errorf("Failed to get mirrors: %s\n", err)
 		}
 	}()

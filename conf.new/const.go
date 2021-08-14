@@ -5,7 +5,6 @@ import (
 )
 
 var (
-	Debug    = false
 	ConfDir  = "/etc/pmanager"
 	ConfFile = "pmanager.conf"
 	cnf      *configuration

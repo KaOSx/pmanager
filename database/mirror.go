@@ -137,12 +137,12 @@ func checkMd5(mirror, mainMirror *Mirror) {
 	}
 }
 
-func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string, debug bool) (countries []Country, err error) {
+func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []Country, err error) {
 	var repos []string
 	if repos, err = parsePacmanConf(pacmanConf); err != nil {
 		return
 	}
-	if debug {
+	if log.Debug {
 		log.Println("Found repos:")
 		for _, r := range repos {
 			log.Println(" -", r)
@@ -151,7 +151,7 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string, debug bool) (c
 	if countries, err = parsePacmanMirrors(pacmanMirrors, repos); err != nil {
 		return
 	}
-	if debug {
+	if log.Debug {
 		log.Println("Found mirrors:")
 		for _, c := range countries {
 			log.Println(" *", c.Name)
