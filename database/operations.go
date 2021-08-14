@@ -4,6 +4,8 @@ import (
 	"pmanager/log"
 	"sync"
 
+	"reflect"
+
 	"gorm.io/gorm"
 )
 
@@ -76,4 +78,65 @@ func UpdateAll(
 	if err != nil {
 		log.Fatalf("Failed to update database: %s\n", err)
 	}
+}
+
+func First(e interface{}, r *Request) bool {
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	return dbsingleton.Scopes(r.where(), r.order()).First(e).Error == nil
+}
+
+func Search(e interface{}, r *Request) bool {
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	return dbsingleton.Scopes(r.where(), r.order(), r.limit(), r.offset()).Find(e).Error == nil
+}
+
+func SearchAll(e interface{}) bool {
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	return dbsingleton.Find(e).Error == nil
+}
+
+func Paginate(e interface{}, r *Request) (p Pagination, ok bool) {
+	t := reflect.TypeOf(e)
+	if t.Kind() != reflect.Ptr {
+		log.Errorln("Not a pointer")
+		return
+	}
+	t = t.Elem()
+	if t.Kind() != reflect.Slice {
+		log.Errorln("Not a pointer of slice")
+		return
+	}
+	v := reflect.New(t.Elem()).Interface()
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	w, o := r.where(), r.order()
+	var c int64
+	if err := dbsingleton.Model(v).Scopes(w, o).Count(&c).Error; err != nil {
+		return
+	}
+	p = r.paginate(c)
+	if c > 0 {
+		ok = dbsingleton.Scopes(w, o, r.limit(), r.offset()).Find(e).Error != nil
+	} else {
+		ok = true
+	}
+	return
+}
+
+func GetPackage(p *Package, r *Request, base string) (ok bool) {
+	if ok = Search(p, r); !ok {
+		return
+	}
+	if p.GitID == 0 {
+		if searchGit(base, p) {
+			dbsingleton.Lock()
+			defer dbsingleton.Unlock()
+			dbsingleton.Transaction(updateGit(&p.Git, p.Name))
+			p.GitID = p.Git.ID
+		}
+	}
+	return
 }

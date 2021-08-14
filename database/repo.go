@@ -246,3 +246,49 @@ func updatePackages(add, update, remove []Package) func(*gorm.DB) error {
 		return nil
 	}
 }
+
+func scanPkginfo(sc *bufio.Scanner, git *Git) {
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "gitrepo = ") {
+			git.Repository = strings.TrimSpace(line[len("gitrepo = "):])
+		} else if strings.HasPrefix(line, "gitfolder = ") {
+			git.Folder = strings.TrimSpace(line[len("gitfolder = "):])
+		}
+	}
+}
+
+func searchGit(base string, p *Package) bool {
+	fp := path.Join(base, p.Repository, p.Filename)
+	tf, err := resource.OpenArchive(fp)
+	if err != nil {
+		log.Debugf("\033[1;31mFailed to load %s: %s\033[m\n", fp, err)
+		return false
+	}
+	for {
+		hdr, err := tf.Next()
+		if err != nil {
+			break
+		}
+		if hdr.Name == ".PKGINFO" {
+			var buf bytes.Buffer
+			if _, err = io.Copy(&buf, tf); err == nil {
+				sc := bufio.NewScanner(&buf)
+				scanPkginfo(sc, &p.Git)
+				p.Git.Name = p.Name
+				return true
+			}
+			break
+		}
+	}
+	return false
+}
+
+func updateGit(git *Git, name string) func(*gorm.DB) error {
+	return func(tx *gorm.DB) error {
+		if err := tx.Create(git).Error; err != nil {
+			return err
+		}
+		return tx.Model(&Package{}).Where("name = ?", name).Update("git_id", git.ID).Error
+	}
+}
