@@ -175,7 +175,7 @@ func findAllPackages() (packages []Package) {
 
 func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Package, removeFlags []Flag) {
 	if len(oldPackages) == 0 {
-		return newPackages, nil, nil
+		return newPackages, nil, nil, nil
 	}
 	mp, mr := make(map[string]Package), make(map[string][]string)
 	done := make(map[uint]bool)

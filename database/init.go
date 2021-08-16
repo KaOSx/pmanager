@@ -48,7 +48,7 @@ type Package struct {
 	Flag          Flag
 	GitID         uint
 	Git           Git
-	InBuild       bool `gorm:"-"`
+	BuildVersion  *Package `gorm:"-"`
 }
 
 func (p Package) FullName() string {

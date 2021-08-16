@@ -47,6 +47,7 @@ func UpdateAll(
 	var err error
 	var countries []Country
 	var add, update, remove []Package
+	var removeFlags []Flag
 
 	wg.Add(2)
 	go func() {
@@ -129,6 +130,15 @@ func Paginate(e interface{}, r *Request) (p Pagination, ok bool) {
 func GetPackage(p *Package, r *Request, base string) (ok bool) {
 	if ok = Search(p, r); !ok {
 		return
+	}
+	if p.FlagID == 0 && p.Repository != "build" {
+		pb := new(Package)
+		if Search(pb, NewRequest([]Filter{
+			NewFilter("repository", "=", "build"),
+			NewFilter("name", "=", p.Name),
+		}, nil)) {
+			p.BuildVersion = pb
+		}
 	}
 	if p.GitID == 0 {
 		if searchGit(base, p) {
