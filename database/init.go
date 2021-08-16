@@ -22,7 +22,6 @@ type Flag struct {
 	Repository string
 	Email      string
 	Comment    string
-	Flagged    bool
 }
 
 type Package struct {
@@ -49,6 +48,7 @@ type Package struct {
 	Flag          Flag
 	GitID         uint
 	Git           Git
+	InBuild       bool `gorm:"-"`
 }
 
 func (p Package) FullName() string {

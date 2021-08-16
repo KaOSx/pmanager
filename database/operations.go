@@ -27,10 +27,10 @@ func UpdatePackages(base, extension string, excludes []string) {
 		log.Fatalf("Failed to get packages: %s\n", err)
 	}
 	oldPackages := findAllPackages()
-	add, update, remove := unzipPackages(oldPackages, packages)
+	add, update, remove, removeFlags := unzipPackages(oldPackages, packages)
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
-	if err = dbsingleton.Transaction(updatePackages(add, update, remove)); err != nil {
+	if err = dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
 		log.Fatalf("Failed to update packages database: %s\n", err)
 	}
 }
@@ -63,7 +63,7 @@ func UpdateAll(
 			return
 		}
 		oldPackages = findAllPackages()
-		add, update, remove = unzipPackages(oldPackages, packages)
+		add, update, remove, removeFlags = unzipPackages(oldPackages, packages)
 	}()
 	wg.Wait()
 
@@ -73,7 +73,7 @@ func UpdateAll(
 		if err = updateMirrors(countries)(tx); err != nil {
 			return
 		}
-		return updatePackages(add, update, remove)(tx)
+		return updatePackages(add, update, remove, removeFlags)(tx)
 	})
 	if err != nil {
 		log.Fatalf("Failed to update database: %s\n", err)

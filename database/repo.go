@@ -173,7 +173,7 @@ func findAllPackages() (packages []Package) {
 	return
 }
 
-func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Package) {
+func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Package, removeFlags []Flag) {
 	if len(oldPackages) == 0 {
 		return newPackages, nil, nil
 	}
@@ -189,10 +189,14 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 			done[op.ID] = true
 			p.ID = op.ID
 			p.CreatedAt = op.CreatedAt
-			p.FlagID = op.FlagID
-			p.Flag = op.Flag
 			p.GitID = op.GitID
 			p.Git = op.Git
+			if p.Version == op.Version {
+				p.FlagID = op.FlagID
+				p.Flag = op.Flag
+			} else {
+				removeFlags = append(removeFlags, p.Flag)
+			}
 		}
 		if p.GitID == 0 {
 			for _, r := range mr[p.Name] {
@@ -222,11 +226,17 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 	return
 }
 
-func updatePackages(add, update, remove []Package) func(*gorm.DB) error {
+func updatePackages(add, update, remove []Package, removeFlags []Flag) func(*gorm.DB) error {
 	return func(tx *gorm.DB) error {
 		if len(remove) > 0 {
-			if err := tx.Unscoped().Delete(&remove).Error; err != nil {
-				return err
+			for i := 0; i < 100; i += 100 {
+				r := remove[i:]
+				if len(r) > 100 {
+					r = r[:100]
+				}
+				if err := tx.Unscoped().Delete(&r).Error; err != nil {
+					return err
+				}
 			}
 		}
 		if len(update) > 0 {
@@ -236,6 +246,17 @@ func updatePackages(add, update, remove []Package) func(*gorm.DB) error {
 					u = u[:100]
 				}
 				if err := tx.Save(&u).Error; err != nil {
+					return err
+				}
+			}
+		}
+		if len(removeFlags) > 0 {
+			for i := 0; i < 100; i += 100 {
+				r := removeFlags[i:]
+				if len(r) > 100 {
+					r = r[:100]
+				}
+				if err := tx.Unscoped().Delete(&r).Error; err != nil {
 					return err
 				}
 			}
