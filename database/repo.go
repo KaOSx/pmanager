@@ -313,3 +313,13 @@ func updateGit(git *Git, name string) func(*gorm.DB) error {
 		return tx.Model(&Package{}).Where("name = ?", name).Update("git_id", git.ID).Error
 	}
 }
+
+func createFlag(p *Package) func(*gorm.DB) error {
+	return func(tx *gorm.DB) error {
+		if err := tx.Create(&p.Flag).Error; err != nil {
+			return err
+		}
+		p.FlagID = p.Flag.ID
+		return tx.Model(p).Update("git_id", p.FlagID).Error
+	}
+}

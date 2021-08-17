@@ -150,3 +150,9 @@ func GetPackage(p *Package, r *Request, base string) (ok bool) {
 	}
 	return
 }
+
+func CreateFlag(p *Package) error {
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	return dbsingleton.Transaction(createFlag(p))
+}
