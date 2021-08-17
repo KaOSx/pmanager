@@ -6,4 +6,10 @@ require (
 	gorm.io/gorm v1.21.13
 )
 
-go 1.16
+require (
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.2 // indirect
+	github.com/mattn/go-sqlite3 v1.14.5 // indirect
+)
+
+go 1.17
