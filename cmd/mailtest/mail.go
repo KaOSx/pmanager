@@ -2,27 +2,32 @@ package mailtest
 
 import (
 	"fmt"
-	"pmanager/conf"
-	"pmanager/util/mail"
+
+	"pmanager/conf.new"
+	"pmanager/util.new/mail"
 )
 
 func SendMail([]string) {
-	server := mail.Server{
-		Host:     conf.Read("smtp.host"),
-		Port:     conf.Read("smtp.port"),
-		TLS:      conf.ReadBool("smtp.use_encryption"),
-		User:     conf.Read("smtp.user"),
-		Password: conf.Read("smtp.password"),
-	}
-	subject := "Test email from pmanager"
-	body := "body of the mail"
-	m := mail.New(server, conf.Read("smtp.send_from"), conf.Read("smtp.send_to"), subject, body)
-	m.AddHeader("Reply-To", conf.Read("smtp.send_to")).
-		AddHeader("X-Mailer", "Packages").
-		AddHeader("MIME-Version", "1.0").
-		AddHeader("Content-Transfer-Encoding", "8bit").
-		AddHeader("Content-type", "text/plain; charset=utf-8")
-	if err := m.Send(); err != nil {
+	mail.InitSmtp(
+		conf.String("smtp.host"),
+		conf.String("smtp.port"),
+		conf.String("smtp.user"),
+		conf.String("smtp.password"),
+		conf.Bool("smtp.use_encryption"),
+	)
+
+	var m mail.Mail
+	m.From(conf.String("smtp.send_from")).
+		To(conf.String("smtp.send_to")).
+		Header("Reply-To", conf.String("smtp.send_to")).
+		Header("X-Mailer", "Packages").
+		Header("MIME-Version", "1.0").
+		Header("Content-Transfer-Encoding", "8bit").
+		Header("Content-type", "text/plain; charset=utf-8").
+		Subject("Test email from pmanager").
+		Body("body of the mail")
+
+	if err := mail.Send(m); err != nil {
 		fmt.Println(err)
 	}
 }
