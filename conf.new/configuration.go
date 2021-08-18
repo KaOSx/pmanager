@@ -60,8 +60,8 @@ func (c *configuration) bool(key string) bool {
 	return false
 }
 
-func (c *configuration) int(key string) int {
-	if value, err := strconv.Atoi(c.string(key)); err == nil {
+func (c *configuration) int(key string) int64 {
+	if value, err := strconv.ParseInt(c.string(key), 10, 64); err == nil {
 		return value
 	}
 	return 0
@@ -124,7 +124,7 @@ func Bool(key string) bool {
 	return cnf.bool(key)
 }
 
-func Int(key string) int {
+func Int(key string) int64 {
 	return cnf.int(key)
 }
 
