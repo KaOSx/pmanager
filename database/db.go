@@ -201,11 +201,40 @@ func NewRequest(filters []Filter, sorts []Sort, pageLimit ...int64) *Request {
 		}
 		p := pageLimit[0]
 		if l > 0 {
-			r.l = l
-			if p > 0 {
-				r.o = (p - 1) * l
-			}
+			r.SetLimit(l).SetPage(p)
 		}
 	}
 	return &r
+}
+
+func NewFilterRequest(filters ...Filter) *Request {
+	return NewRequest(filters, nil)
+}
+
+func NewOrderRequest(sorts ...Sort) *Request {
+	return NewRequest(nil, sorts)
+}
+
+func (r *Request) AddFilter(field, operation string, value interface{}) *Request {
+	r.f = append(r.f, NewFilter(field, operation, value))
+	return r
+}
+
+func (r *Request) AddSort(field string, desc bool) *Request {
+	r.s = append(r.s, NewSort(field, desc))
+	return r
+}
+
+func (r *Request) SetLimit(limit int64) *Request {
+	r.l = limit
+	return r
+}
+
+func (r *Request) SetPage(page int64) *Request {
+	if r.l > 0 {
+		if page > 0 {
+			r.o = (page - 1) * r.l
+		}
+	}
+	return r
 }

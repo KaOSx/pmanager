@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"pmanager/log"
 	"time"
 
@@ -51,8 +52,16 @@ type Package struct {
 	BuildVersion  *Package `gorm:"-"`
 }
 
+func (p Package) RepoName() string {
+	return fmt.Sprintf("%s/%s", p.Repository, p.Name)
+}
+
+func (p Package) VersionName() string {
+	return fmt.Sprintf("%s-%s", p.Name, p.Version)
+}
+
 func (p Package) FullName() string {
-	return p.Repository + "/" + p.Name
+	return fmt.Sprintf("%s/%s-%s", p.Repository, p.Name, p.Version)
 }
 
 func (p1 Package) Equal(p2 Package) bool {

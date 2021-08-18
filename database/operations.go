@@ -133,10 +133,10 @@ func GetPackage(p *Package, r *Request, base string) (ok bool) {
 	}
 	if p.FlagID == 0 && p.Repository != "build" {
 		pb := new(Package)
-		if Search(pb, NewRequest([]Filter{
+		if Search(pb, NewFilterRequest(
 			NewFilter("repository", "=", "build"),
 			NewFilter("name", "=", p.Name),
-		}, nil)) {
+		)) {
 			p.BuildVersion = pb
 		}
 	}

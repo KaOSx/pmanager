@@ -167,9 +167,7 @@ func getPackages(base, extension string, excludes []string) (packages []Package,
 }
 
 func findAllPackages() (packages []Package) {
-	dbsingleton.Lock()
-	defer dbsingleton.Unlock()
-	dbsingleton.Find(&packages)
+	SearchAll(&packages)
 	return
 }
 
@@ -180,11 +178,11 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 	mp, mr := make(map[string]Package), make(map[string][]string)
 	done := make(map[uint]bool)
 	for _, p := range oldPackages {
-		mp[p.FullName()] = p
+		mp[p.RepoName()] = p
 		mr[p.Name] = append(mr[p.Name], p.Repository)
 	}
 	for _, p := range newPackages {
-		op, ok := mp[p.FullName()]
+		op, ok := mp[p.RepoName()]
 		if ok {
 			done[op.ID] = true
 			p.ID = op.ID
