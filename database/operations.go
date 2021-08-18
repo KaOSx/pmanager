@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) {
+func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]int {
 	countries, err := getMirrors(pacmanConf, pacmanMirrors, mainMirrorName)
 	if err != nil {
 		log.Fatalf("Failed to get mirrors: %s\n", err)
@@ -19,9 +19,17 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) {
 	if err = dbsingleton.Transaction(updateMirrors(countries)); err != nil {
 		log.Fatalf("Failed to update mirrors database: %s\n", err)
 	}
+	c, m := len(countries), 0
+	for _, e := range countries {
+		m += len(e.Mirrors)
+	}
+	return map[string]int{
+		"countries": c,
+		"mirrors":   m,
+	}
 }
 
-func UpdatePackages(base, extension string, excludes []string) {
+func UpdatePackages(base, extension string, excludes []string) map[string]int {
 	packages, err := getPackages(base, extension, excludes)
 	if err != nil {
 		log.Fatalf("Failed to get packages: %s\n", err)
@@ -33,6 +41,12 @@ func UpdatePackages(base, extension string, excludes []string) {
 	if err = dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
 		log.Fatalf("Failed to update packages database: %s\n", err)
 	}
+	return map[string]int{
+		"packages_added":   len(add),
+		"packages_updated": len(update),
+		"packages_removed": len(remove),
+		"flags_removed":    len(removeFlags),
+	}
 }
 
 func UpdateAll(
@@ -42,7 +56,7 @@ func UpdateAll(
 	base,
 	extension string,
 	excludes []string,
-) {
+) map[string]int {
 	var wg sync.WaitGroup
 	var err error
 	var countries []Country
@@ -78,6 +92,18 @@ func UpdateAll(
 	})
 	if err != nil {
 		log.Fatalf("Failed to update database: %s\n", err)
+	}
+	c, m := len(countries), 0
+	for _, e := range countries {
+		m += len(e.Mirrors)
+	}
+	return map[string]int{
+		"countries":        c,
+		"mirrors":          m,
+		"packages_added":   len(add),
+		"packages_updated": len(update),
+		"packages_removed": len(remove),
+		"flags_removed":    len(removeFlags),
 	}
 }
 
