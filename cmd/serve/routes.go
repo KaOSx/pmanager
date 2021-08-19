@@ -47,21 +47,21 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 		}
 
 		var flags []database.Flag
-		pagination, _ := database.Paginate(&flags, q)
-
-		writeResponse(r, w, conv.Map{
-			"data":     flags,
-			"filter":   mf,
-			"sort":     ms,
-			"paginate": pagination,
-		})
+		if pagination, ok := database.Paginate(&flags, q); ok {
+			writeResponse(r, w, conv.Map{
+				"data":     flags,
+				"filter":   mf,
+				"sort":     ms,
+				"paginate": pagination,
+			})
+		} else {
+			writeResponse(r, w, conv.Map{"data": nil}, http.StatusInternalServerError)
+		}
 	},
 	"/flag/add": func(w http.ResponseWriter, r *http.Request) {
 		email, err := mail.ParseAddress(getString(r, "email"))
 		if err != nil {
-			writeResponse(r, w, conv.Map{
-				"data": database.Flag{},
-			})
+			writeResponse(r, w, conv.Map{"data": nil}, http.StatusInternalServerError)
 			return
 		}
 		f := database.Flag{
@@ -76,6 +76,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			AddFilter("name", "=", f.Name).
 			AddFilter("version", "=", f.Version).
 			AddFilter("Repository", "=", f.Repository)
+		code := http.StatusOK
 		if database.First(&p, q) {
 			p.Flag = f
 			if err := database.CreateFlag(&p); err == nil {
@@ -85,10 +86,11 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			}
 		} else {
 			f = database.Flag{}
+			code = http.StatusInternalServerError
 		}
 		writeResponse(r, w, conv.Map{
 			"data": f,
-		})
+		}, code)
 	},
 	"/mirror": func(w http.ResponseWriter, r *http.Request) {
 		var countries []database.Country
@@ -121,5 +123,73 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			conf.Slice("repository.exclude"),
 		)
 		writeResponse(r, w, data)
+	},
+	"/package/view": func(w http.ResponseWriter, r *http.Request) {
+		name := getString(r, "name")
+		if name == "" {
+			writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
+			return
+		}
+		var p database.Package
+		if !database.GetPackage(
+			&p,
+			database.NewFilterRequest(
+				database.NewFilter("repository||'/'||name||-||version", "=", name),
+			),
+			conf.String("repository.base"),
+		) {
+			writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
+			return
+		}
+		data := conv.Map{
+			"Repository":    p.Repository,
+			"Name":          p.Name,
+			"Version":       p.Version,
+			"Arch":          p.Arch,
+			"Description":   p.Description,
+			"PackageSize":   conv.ToSize(p.PackageSize),
+			"InstalledSize": conv.ToSize(p.InstalledSize),
+			"Licenses":      p.Licenses,
+			"Groups":        p.Groups,
+			"BuildDate":     p.BuildDate,
+			"Depends":       p.Depends,
+			"Files":         p.Files,
+			"Md5Sum":        p.Md5Sum,
+			"Sha256Sum":     p.Sha256Sum,
+			"Filename":      p.Filename,
+			"Flagged":       p.FlagID != 0,
+			"CompleteName":  p.VersionName(),
+		}
+		if p.BuildVersion != nil {
+			data["Build"] = p.BuildVersion.FullName()
+		}
+		url := conv.Map{
+			"Upstream": p.URL,
+			"Download": conf.String("main.repourl") + p.Repository + "/" + p.Filename,
+		}
+		if p.GitID != 0 {
+			g := p.Git
+			gurl := conf.String("main.giturl") + p.Repository
+			url["Bugs"] = gurl + "/issues/"
+			url["Sources"] = gurl + "/tree/master/" + g.Folder
+			url["PKGBUILD"] = gurl + "/blob/master/" + g.Folder + "/PKGBUILD"
+			url["Commits"] = gurl + "/commits/master/" + g.Folder + "/PKGBUILD"
+		}
+		data["URL"] = url
+		writeResponse(r, w, conv.Map{"data": data})
+	},
+	"/package/list": func(w http.ResponseWriter, r *http.Request) {
+		getPackages(w, r, "")
+	},
+	"/repo/list": func(w http.ResponseWriter, r *http.Request) {
+		repos := conf.Slice("repository.include")
+		repo := getString(r, "repo")
+		for _, e := range repos {
+			if e == repo {
+				getPackages(w, r, repo)
+				return
+			}
+		}
+		writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
 	},
 }

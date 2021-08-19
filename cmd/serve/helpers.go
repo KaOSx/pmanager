@@ -134,3 +134,84 @@ func getSort(r *http.Request, authorized_fields ...string) conv.Map {
 	}
 	return nil
 }
+
+func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
+	q := initPaginationQuery(r)
+	ms := getSort(r, "name", "repo", "date", "flagged")
+	mf := getFilter(r, "search", "from|d", "to|d", "flagged|b", "exact|b")
+	if repository != "" {
+		mf["repo"] = repository
+	}
+
+	if mf.Exists("search") {
+		v, op, f := mf.GetString("search"), "=", "name"
+		if !mf.GetBool("exact") {
+			v, op, f = like(v), "LIKE", "name||'-'||version"
+		}
+		q.AddFilter(f, op, v)
+	}
+	if mf.Exists("from") {
+		q.AddFilter("build_date", ">=", mf.GetDate("from"))
+	}
+	if mf.Exists("to") {
+		q.AddFilter("build_date", "<=", mf.GetDate("to"))
+	}
+	if mf.Exists("repo") {
+		q.AddFilter("repository", "=", repository)
+	}
+	if mf.Exists("flagged") {
+		op := "<>"
+		if mf.GetBool("flagged") {
+			op = "="
+		}
+		q.AddFilter("flag_id", op, 0)
+	}
+	if ms != nil {
+		field := ms.GetString("field")
+		desc := !ms.GetBool("asc")
+		switch field {
+		case "name":
+			q.AddSort("name", desc).AddSort("version", desc)
+		case "repo":
+			q.AddSort("repository", desc)
+		case "date":
+			q.AddSort("build_date", desc)
+		case "flagged":
+			q.AddSort("CASE flag_id WHEN 0 then 0 ELSE 1 END", desc)
+		}
+	}
+
+	var packages []database.Package
+	pagination, ok := database.Paginate(&packages, q)
+	if !ok {
+		writeResponse(r, w, conv.Map{"data": nil}, http.StatusInternalServerError)
+		return
+	}
+
+	totalSize := database.SumSizes(q, "package_size")
+	data := make([]conv.Map, len(packages))
+	for i, p := range packages {
+		data[i] = conv.Map{
+			"Repository":    p.Repository,
+			"Name":          p.Name,
+			"Version":       p.Version,
+			"Arch":          p.Arch,
+			"Description":   p.Description,
+			"PackageSize":   conv.ToSize(p.PackageSize),
+			"InstalledSize": conv.ToSize(p.InstalledSize),
+			"Md5Sum":        p.Md5Sum,
+			"Sha256Sum":     p.Sha256Sum,
+			"Filename":      p.Filename,
+			"Flagged":       p.FlagID != 0,
+			"CompleteName":  p.VersionName(),
+		}
+	}
+
+	writeResponse(r, w, conv.Map{
+		"data":     data,
+		"filter":   mf,
+		"sort":     ms,
+		"paginate": pagination,
+		"size":     conv.ToSize(totalSize),
+	})
+}

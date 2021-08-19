@@ -1,10 +1,10 @@
 package database
 
 import (
+	"fmt"
 	"pmanager/log"
-	"sync"
-
 	"reflect"
+	"sync"
 
 	"gorm.io/gorm"
 )
@@ -181,4 +181,16 @@ func CreateFlag(p *Package) error {
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 	return dbsingleton.Transaction(createFlag(p))
+}
+
+func SumSizes(r *Request, field string) (c int64) {
+	w, o := r.where(), r.order()
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	dbsingleton.
+		Model(&Package{}).
+		Select(fmt.Sprintf("sum(%s)", field)).
+		Scopes(w, o).
+		Scan(&c)
+	return
 }
