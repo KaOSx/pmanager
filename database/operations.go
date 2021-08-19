@@ -29,8 +29,8 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]
 	}
 }
 
-func UpdatePackages(base, extension string, excludes []string) map[string]int {
-	packages, err := getPackages(base, extension, excludes)
+func UpdatePackages(base, extension string, includes, excludes []string) map[string]int {
+	packages, err := getPackages(base, extension, getIncludes(includes, excludes))
 	if err != nil {
 		log.Fatalf("Failed to get packages: %s\n", err)
 	}
@@ -55,6 +55,7 @@ func UpdateAll(
 	mainMirrorName,
 	base,
 	extension string,
+	includes,
 	excludes []string,
 ) map[string]int {
 	var wg sync.WaitGroup
@@ -73,7 +74,7 @@ func UpdateAll(
 	go func() {
 		defer wg.Done()
 		var packages, oldPackages []Package
-		if packages, err = getPackages(base, extension, excludes); err != nil {
+		if packages, err = getPackages(base, extension, getIncludes(includes, excludes)); err != nil {
 			log.Errorf("Failed to get packages: %s\n", err)
 			return
 		}

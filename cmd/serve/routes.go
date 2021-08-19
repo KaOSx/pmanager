@@ -109,6 +109,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 		data := database.UpdatePackages(
 			conf.String("repository.base"),
 			conf.String("repository.extension"),
+			conf.Slice("repository.include"),
 			conf.Slice("repository.exclude"),
 		)
 		writeResponse(r, w, data)
@@ -120,6 +121,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			conf.String("mirror.main_mirror"),
 			conf.String("repository.base"),
 			conf.String("repository.extension"),
+			conf.Slice("repository.include"),
 			conf.Slice("repository.exclude"),
 		)
 		writeResponse(r, w, data)

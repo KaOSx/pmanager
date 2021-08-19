@@ -15,6 +15,17 @@ import (
 	"pmanager/util.new/resource"
 )
 
+func getIncludes(includes, excludes []string) map[string]bool {
+	m := make(map[string]bool)
+	for _, i := range includes {
+		m[i] = true
+	}
+	for _, e := range excludes {
+		delete(m, e)
+	}
+	return m
+}
+
 func getRepoFilePath(base, repoName, extension string) string {
 	return path.Join(base, repoName, repoName+"."+extension)
 }
@@ -133,27 +144,23 @@ func parseRepoFile(base, repoName, extension string) (repo []Package, err error)
 	return
 }
 
-func getRepoNames(base string, excludes []string) (repo []string, err error) {
-	mexcl := make(map[string]bool)
-	for _, e := range excludes {
-		mexcl[e] = true
-	}
+func getRepoNames(base string, incl map[string]bool) (repo []string, err error) {
 	files, err := os.ReadDir(base)
 	if err != nil {
 		return
 	}
 	for _, f := range files {
 		fn := f.Name()
-		if f.IsDir() && !mexcl[fn] {
+		if f.IsDir() && incl[fn] {
 			repo = append(repo, fn)
 		}
 	}
 	return
 }
 
-func getPackages(base, extension string, excludes []string) (packages []Package, err error) {
+func getPackages(base, extension string, incl map[string]bool) (packages []Package, err error) {
 	var repoNames []string
-	if repoNames, err = getRepoNames(base, excludes); err != nil {
+	if repoNames, err = getRepoNames(base, incl); err != nil {
 		log.Fatalln(err)
 	}
 	for _, rn := range repoNames {
