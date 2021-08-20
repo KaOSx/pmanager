@@ -143,3 +143,9 @@ func Debugf(f string, v ...interface{}) {
 		Printf(f, v...)
 	}
 }
+
+func Copy(r io.Reader) {
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	Println(buf.String())
+}
