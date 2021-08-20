@@ -3,9 +3,11 @@ package resource
 import (
 	"bytes"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 func IsURL(uri string) bool {
@@ -69,4 +71,15 @@ func Open(uri string) (data io.Reader, err error) {
 		}
 	}
 	return
+}
+
+func IsPortOpen(host, port string) bool {
+	timeout := 5 * time.Second
+	target := host + ":" + port
+	conn, err := net.DialTimeout("tcp", target, timeout)
+	if conn == nil || err != nil {
+		return false
+	}
+	defer conn.Close()
+	return true
 }
