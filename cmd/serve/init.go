@@ -7,6 +7,11 @@ import (
 	"pmanager/util.new/mail"
 )
 
+var (
+	port              string
+	defaultPagination int64
+)
+
 func init() {
 	database.Load(conf.String("database.uri"))
 	mail.InitSmtp(
@@ -16,4 +21,6 @@ func init() {
 		conf.String("smtp.password"),
 		conf.Bool("smtp.use_encryption"),
 	)
+	port = conf.String("api.port")
+	defaultPagination = conf.Int("api.pagination")
 }

@@ -87,7 +87,7 @@ func initPaginationQuery(r *http.Request) *database.Request {
 	}
 	limit := getInt(r, "limit")
 	if limit <= 0 {
-		limit = conf.Int("api.pagination")
+		limit = defaultPagination
 	}
 	return (new(database.Request)).SetLimit(limit).SetPage(page)
 }
