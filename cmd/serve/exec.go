@@ -13,4 +13,5 @@ func Exec() {
 	if err := http.ListenAndServe(url, nil); err != nil {
 		log.Fatalln(err)
 	}
+	log.Debugf("Server started: %s\n", url)
 }

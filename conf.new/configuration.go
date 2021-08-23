@@ -84,7 +84,6 @@ func (c *configuration) fusion(c2 *configuration) (modified bool) {
 		if v2, exists := c2.data[k]; !exists {
 			modified = true
 		} else if v != v2 {
-			modified = true
 			c.data[k] = v2
 			n := c.line[k]
 			line := c.raw[n]
