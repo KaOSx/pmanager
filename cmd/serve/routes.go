@@ -100,14 +100,14 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	"/update/mirror": func(w http.ResponseWriter, r *http.Request) {
 		data := database.UpdateMirrors(
 			conf.String("mirror.pacmanconf"),
-			conf.String("mirror.pacmanmirror"),
+			conf.String("mirror.mirrorlist"),
 			conf.String("mirror.main_mirror"),
 		)
 		writeResponse(r, w, data)
 	},
 	"/update/repo": func(w http.ResponseWriter, r *http.Request) {
 		data := database.UpdatePackages(
-			conf.String("repository.base"),
+			conf.String("repository.basedir"),
 			conf.String("repository.extension"),
 			conf.Slice("repository.include"),
 			conf.Slice("repository.exclude"),
@@ -117,9 +117,9 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	"/update/all": func(w http.ResponseWriter, r *http.Request) {
 		data := database.UpdateAll(
 			conf.String("mirror.pacmanconf"),
-			conf.String("mirror.pacmanmirror"),
+			conf.String("mirror.mirrorlist"),
 			conf.String("mirror.main_mirror"),
-			conf.String("repository.base"),
+			conf.String("repository.basedir"),
 			conf.String("repository.extension"),
 			conf.Slice("repository.include"),
 			conf.Slice("repository.exclude"),

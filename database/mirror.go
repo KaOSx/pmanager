@@ -140,6 +140,7 @@ func checkMd5(mirror, mainMirror *Mirror) {
 func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []Country, err error) {
 	var repos []string
 	if repos, err = parsePacmanConf(pacmanConf); err != nil {
+		err = fmt.Errorf("pacman.conf → %s (%s)", pacmanConf)
 		return
 	}
 	if log.Debug {
@@ -149,6 +150,7 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []C
 		}
 	}
 	if countries, err = parsePacmanMirrors(pacmanMirrors, repos); err != nil {
+		err = fmt.Errorf("mirrorlist → %s (%s)", pacmanMirrors)
 		return
 	}
 	if log.Debug {

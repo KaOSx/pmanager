@@ -9,15 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]int {
+func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (out map[string]int) {
 	countries, err := getMirrors(pacmanConf, pacmanMirrors, mainMirrorName)
 	if err != nil {
-		log.Fatalf("Failed to get mirrors: %s\n", err)
+		log.Errorf("Failed to get mirrors: %s\n", err)
+		return
 	}
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 	if err = dbsingleton.Transaction(updateMirrors(countries)); err != nil {
-		log.Fatalf("Failed to update mirrors database: %s\n", err)
+		log.Errorf("Failed to update mirrors database: %s\n", err)
+		return
 	}
 	c, m := len(countries), 0
 	for _, e := range countries {
@@ -29,17 +31,19 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]
 	}
 }
 
-func UpdatePackages(base, extension string, includes, excludes []string) map[string]int {
+func UpdatePackages(base, extension string, includes, excludes []string) (out map[string]int) {
 	packages, err := getPackages(base, extension, getIncludes(includes, excludes))
 	if err != nil {
-		log.Fatalf("Failed to get packages: %s\n", err)
+		log.Errorf("Failed to get packages: %s\n", err)
+		return
 	}
 	oldPackages := findAllPackages()
 	add, update, remove, removeFlags := unzipPackages(oldPackages, packages)
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 	if err = dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
-		log.Fatalf("Failed to update packages database: %s\n", err)
+		log.Errorf("Failed to update packages database: %s\n", err)
+		return
 	}
 	return map[string]int{
 		"packages_added":   len(add),
