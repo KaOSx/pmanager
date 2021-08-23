@@ -68,5 +68,13 @@ func init() {
 				log.Warnln("Failed to move the old configuration")
 			}
 		}
+		f, err := os.Create(cnfPath)
+		if err != nil {
+			log.Fatalf("Failed to create the configuration file: %s\n", err)
+		}
+		defer f.Close()
+		if err := cnf.writeTo(f); err != nil {
+			log.Fatalf("Failed to write the configuration file: %s\n", err)
+		}
 	}
 }

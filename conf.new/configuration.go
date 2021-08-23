@@ -107,13 +107,13 @@ func (c *configuration) writeTo(w io.Writer) (err error) {
 	buf := bufio.NewWriter(w)
 	for _, line := range c.raw {
 		if _, err = buf.WriteString(line); err != nil {
-			break
+			return
 		}
 		if err = buf.WriteByte('\n'); err != nil {
-			break
+			return
 		}
 	}
-	return
+	return buf.Flush()
 }
 
 func String(key string) string {
