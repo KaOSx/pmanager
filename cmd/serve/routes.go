@@ -94,7 +94,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	},
 	"/mirror": func(w http.ResponseWriter, r *http.Request) {
 		var countries []database.Country
-		database.SearchAll(&countries)
+		database.SearchAll(&countries, "Mirrors.Repos")
 		writeResponse(r, w, countries)
 	},
 	"/update/mirror": func(w http.ResponseWriter, r *http.Request) {

@@ -112,25 +112,42 @@ func UpdateAll(
 	}
 }
 
-func First(e interface{}, r *Request) bool {
-	dbsingleton.Lock()
-	defer dbsingleton.Unlock()
-	return dbsingleton.Scopes(r.where(), r.order()).First(e).Error == nil
+func prScope(pr []string) []func(*gorm.DB) *gorm.DB {
+	out := make([]func(*gorm.DB) *gorm.DB, len(pr))
+	for i, p := range pr {
+		out[i] = func(sc *gorm.DB) *gorm.DB { return sc.Preload(p) }
+	}
+	return out
 }
 
-func Search(e interface{}, r *Request) bool {
+func First(e interface{}, r *Request, preload ...string) bool {
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
-	return dbsingleton.Scopes(r.where(), r.order(), r.limit(), r.offset()).Find(e).Error == nil
+	return dbsingleton.
+		Scopes(prScope(preload)...).
+		Scopes(r.where(), r.order()).
+		First(e).Error == nil
 }
 
-func SearchAll(e interface{}) bool {
+func Search(e interface{}, r *Request, preload ...string) bool {
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
-	return dbsingleton.Find(e).Error == nil
+	return dbsingleton.
+		Scopes(prScope(preload)...).
+		Scopes(r.where(), r.order(), r.limit(), r.offset()).
+		Find(e).Error == nil
 }
 
-func Paginate(e interface{}, r *Request) (p Pagination, ok bool) {
+func SearchAll(e interface{}, preload ...string) bool {
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	return dbsingleton.
+		Scopes(prScope(preload)...).
+		Scopes(prScope(preload)...).
+		Find(e).Error == nil
+}
+
+func Paginate(e interface{}, r *Request, preload ...string) (p Pagination, ok bool) {
 	t := reflect.TypeOf(e)
 	if t.Kind() != reflect.Ptr {
 		log.Errorln("Not a pointer")
@@ -147,11 +164,18 @@ func Paginate(e interface{}, r *Request) (p Pagination, ok bool) {
 	w, o := r.where(), r.order()
 	var c int64
 	if err := dbsingleton.Model(v).Scopes(w, o).Count(&c).Error; err != nil {
+		log.Debugf("Failed to paginate: %s\n", err)
 		return
 	}
 	p = r.paginate(c)
 	if c > 0 {
-		ok = dbsingleton.Scopes(w, o, r.limit(), r.offset()).Find(e).Error != nil
+		err := dbsingleton.
+			Scopes(prScope(preload)...).
+			Scopes(w, o, r.limit(), r.offset()).
+			Find(e).Error
+		if ok = err == nil; !ok {
+			log.Debugf("Failed to exec request: %s\n", err)
+		}
 	} else {
 		ok = true
 	}
@@ -164,10 +188,10 @@ func GetPackage(p *Package, r *Request, base string) (ok bool) {
 	}
 	if p.FlagID == 0 && p.Repository != "build" {
 		pb := new(Package)
-		if Search(pb, NewFilterRequest(
+		if First(pb, NewFilterRequest(
 			NewFilter("repository", "=", "build"),
 			NewFilter("name", "=", p.Name),
-		)) {
+		), "Flag", "Git") {
 			p.BuildVersion = pb
 		}
 	}
