@@ -25,6 +25,18 @@ type Flag struct {
 	Comment    string
 }
 
+func (f Flag) RepoName() string {
+	return fmt.Sprintf("%s/%s", f.Repository, f.Name)
+}
+
+func (f Flag) VersionName() string {
+	return fmt.Sprintf("%s-%s", f.Name, f.Version)
+}
+
+func (f Flag) FullName() string {
+	return fmt.Sprintf("%s/%s-%s", f.Repository, f.Name, f.Version)
+}
+
 type Package struct {
 	gorm.Model
 	Repository    string
