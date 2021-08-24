@@ -13,13 +13,13 @@ var (
 		"mirror": func() map[string]int {
 			return database.UpdateMirrors(
 				conf.String("mirror.pacmanconf"),
-				conf.String("mirror.pacmanmirror"),
+				conf.String("mirror.mirrorlist"),
 				conf.String("mirror.main_mirror"),
 			)
 		},
 		"repo": func() map[string]int {
 			return database.UpdatePackages(
-				conf.String("repository.base"),
+				conf.String("repository.basedir"),
 				conf.String("repository.extension"),
 				conf.Slice("repository.include"),
 				conf.Slice("repository.exclude"),
@@ -28,9 +28,9 @@ var (
 		"all": func() map[string]int {
 			return database.UpdateAll(
 				conf.String("mirror.pacmanconf"),
-				conf.String("mirror.pacmanmirror"),
+				conf.String("mirror.mirrorlist"),
 				conf.String("mirror.main_mirror"),
-				conf.String("repository.base"),
+				conf.String("repository.basedir"),
 				conf.String("repository.extension"),
 				conf.Slice("repository.include"),
 				conf.Slice("repository.exclude"),
