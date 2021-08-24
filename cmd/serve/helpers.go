@@ -160,9 +160,9 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 		q.AddFilter("repository", "=", repository)
 	}
 	if mf.Exists("flagged") {
-		op := "<>"
+		op := "="
 		if mf.GetBool("flagged") {
-			op = "="
+			op = "<>"
 		}
 		q.AddFilter("flag_id", op, 0)
 	}

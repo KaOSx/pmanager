@@ -183,7 +183,7 @@ func Paginate(e interface{}, r *Request, preload ...string) (p Pagination, ok bo
 }
 
 func GetPackage(p *Package, r *Request, base string) (ok bool) {
-	if ok = Search(p, r); !ok {
+	if ok = First(p, r, "Git"); !ok {
 		return
 	}
 	if p.FlagID == 0 && p.Repository != "build" {
@@ -191,7 +191,7 @@ func GetPackage(p *Package, r *Request, base string) (ok bool) {
 		if First(pb, NewFilterRequest(
 			NewFilter("repository", "=", "build"),
 			NewFilter("name", "=", p.Name),
-		), "Flag", "Git") {
+		)) {
 			p.BuildVersion = pb
 		}
 	}

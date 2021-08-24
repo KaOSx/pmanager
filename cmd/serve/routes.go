@@ -76,17 +76,29 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			AddFilter("name", "=", f.Name).
 			AddFilter("version", "=", f.Version).
 			AddFilter("Repository", "=", f.Repository)
+		ok := database.First(&p, q)
+		if ok = ok && p.FlagID == 0; ok {
+			if p.Repository != "build" {
+				ok = !database.First(
+					new(database.Package),
+					(new(database.Request)).
+						AddFilter("name", "=", p.Name).
+						AddFilter("Repository", "=", "build"),
+				)
+			}
+		}
 		code := http.StatusOK
-		if database.First(&p, q) {
+		if !ok {
+			code = http.StatusNotFound
+			f = database.Flag{}
+		} else {
 			p.Flag = f
 			if err := database.CreateFlag(&p); err == nil {
 				sendMail(p)
 			} else {
 				log.Debugf("Failed to create flag: %s\n", err)
+				code = http.StatusInternalServerError
 			}
-		} else {
-			f = database.Flag{}
-			code = http.StatusInternalServerError
 		}
 		writeResponse(r, w, conv.Map{
 			"data": f,
@@ -136,9 +148,9 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 		if !database.GetPackage(
 			&p,
 			database.NewFilterRequest(
-				database.NewFilter("repository||'/'||name||-||version", "=", name),
+				database.NewFilter("repository || '/' || name || '-' || version", "=", name),
 			),
-			conf.String("repository.base"),
+			conf.String("repository.basedir"),
 		) {
 			writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
 			return

@@ -174,7 +174,7 @@ func getPackages(base, extension string, incl map[string]bool) (packages []Packa
 }
 
 func findAllPackages() (packages []Package) {
-	SearchAll(&packages)
+	SearchAll(&packages, "Flag")
 	return
 }
 
@@ -199,8 +199,8 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 			if p.Version == op.Version {
 				p.FlagID = op.FlagID
 				p.Flag = op.Flag
-			} else {
-				removeFlags = append(removeFlags, p.Flag)
+			} else if op.FlagID != 0 {
+				removeFlags = append(removeFlags, op.Flag)
 			}
 		}
 		if p.GitID == 0 {
