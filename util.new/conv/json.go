@@ -31,3 +31,11 @@ func ToMap(v interface{}) Map {
 	json.Unmarshal(b, &m)
 	return m
 }
+
+func ToData(src, dest interface{}) (err error) {
+	var buf bytes.Buffer
+	if err = WriteJson(&buf, src, false); err == nil {
+		err = ReadJson(&buf, dest)
+	}
+	return
+}

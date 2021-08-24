@@ -6,6 +6,8 @@ import (
 	"net/mail"
 	"pmanager/database"
 	"pmanager/log"
+	"strconv"
+	"strings"
 
 	"pmanager/conf.new"
 	"pmanager/util.new/conv"
@@ -103,6 +105,22 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 		writeResponse(r, w, conv.Map{
 			"data": f,
 		}, code)
+	},
+	"/flag/delete": func(w http.ResponseWriter, r *http.Request) {
+		sids := strings.Split(getString(r, "ids"), ",")
+		ids := make([]uint, len(sids))
+		for i, sid := range sids {
+			if id, err := strconv.ParseUint(sid, 10, 64); err == nil {
+				ids[i] = uint(id)
+			} else {
+				writeResponse(r, w, err, http.StatusBadRequest)
+				return
+			}
+		}
+		c := database.DeleteFlags(ids)
+		writeResponse(r, w, conv.Map{
+			"flags_deleted": c,
+		})
 	},
 	"/mirror": func(w http.ResponseWriter, r *http.Request) {
 		var countries []database.Country

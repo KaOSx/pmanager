@@ -212,6 +212,21 @@ func CreateFlag(p *Package) error {
 	return dbsingleton.Transaction(createFlag(p))
 }
 
+func DeleteFlags(ids []uint) int {
+	var flags []Flag
+	f := NewFilter("id", "IN", ids)
+	if !Search(&flags, NewFilterRequest(f)) || len(flags) == 0 {
+		return 0
+	}
+	dbsingleton.Lock()
+	defer dbsingleton.Unlock()
+	if err := dbsingleton.Transaction(deleteFlags(flags)); err != nil {
+		log.Errorf("Failed to delete flags: %s\n", err)
+		return 0
+	}
+	return len(flags)
+}
+
 func SumSizes(r *Request, field string) (c int64) {
 	w, o := r.where(), r.order()
 	dbsingleton.Lock()

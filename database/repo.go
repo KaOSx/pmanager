@@ -328,3 +328,19 @@ func createFlag(p *Package) func(*gorm.DB) error {
 		return tx.Model(p).Update("git_id", p.FlagID).Error
 	}
 }
+
+func deleteFlags(flags []Flag) func(*gorm.DB) error {
+	return func(tx *gorm.DB) error {
+		if len(flags) == 0 {
+			return nil
+		}
+		ids := make([]uint, len(flags))
+		for i, f := range flags {
+			ids[i] = f.ID
+		}
+		if err := tx.Model(&Package{}).Where("flag_id IN ?", ids).Update("flag_id", 0).Error; err != nil {
+			return err
+		}
+		return tx.Unscoped().Delete(&flags).Error
+	}
+}
