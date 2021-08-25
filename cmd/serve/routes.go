@@ -4,13 +4,12 @@ import (
 	"html"
 	"net/http"
 	"net/mail"
+	"pmanager/conf"
 	"pmanager/database"
 	"pmanager/log"
+	"pmanager/util/conv"
 	"strconv"
 	"strings"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/conv"
 )
 
 var routes = map[string]func(http.ResponseWriter, *http.Request){

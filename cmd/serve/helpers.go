@@ -3,14 +3,13 @@ package serve
 import (
 	"fmt"
 	"net/http"
+	"pmanager/conf"
 	"pmanager/database"
 	"pmanager/log"
+	"pmanager/util/conv"
+	"pmanager/util/mail"
 	"strings"
 	"time"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/conv"
-	"pmanager/util.new/mail"
 )
 
 func getMailSubjectAndBody(p database.Package, cr string) (subject, body string) {

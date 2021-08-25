@@ -1,10 +1,9 @@
 package serve
 
 import (
+	"pmanager/conf"
 	"pmanager/database"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/mail"
+	"pmanager/util/mail"
 )
 
 var (

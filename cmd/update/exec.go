@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"pmanager/conf"
 	"pmanager/log"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/conv"
+	"pmanager/util/conv"
 )
 
 func updateApi(t string) {

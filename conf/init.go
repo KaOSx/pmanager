@@ -5,8 +5,7 @@ import (
 	"os"
 	"path"
 	"pmanager/log"
-
-	"pmanager/util.new/resource"
+	"pmanager/util/resource"
 )
 
 func loadDefaultConf() {

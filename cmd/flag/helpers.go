@@ -3,14 +3,13 @@ package flag
 import (
 	"fmt"
 	"net/http"
+	"pmanager/conf"
 	"pmanager/database"
 	"pmanager/log"
+	"pmanager/util/conv"
+	"pmanager/util/resource"
 	"strconv"
 	"strings"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/conv"
-	"pmanager/util.new/resource"
 )
 
 const help = `Available commands:

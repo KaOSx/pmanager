@@ -2,9 +2,8 @@ package mailtest
 
 import (
 	"fmt"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/mail"
+	"pmanager/conf"
+	"pmanager/util/mail"
 )
 
 func SendMail() {

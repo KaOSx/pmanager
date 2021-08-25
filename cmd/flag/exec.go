@@ -3,9 +3,8 @@ package flag
 import (
 	"fmt"
 	"pmanager/database"
+	"pmanager/util/shell"
 	"time"
-
-	"pmanager/util.new/shell"
 )
 
 func Exec() {

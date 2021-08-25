@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"pmanager/log"
+	"pmanager/util/resource"
 	"sort"
 	"strings"
 	"sync"
 
-	"pmanager/log"
-
 	"gorm.io/gorm"
-	"pmanager/util.new/resource"
 )
 
 func parsePacmanConf(uri string) (repos []string, err error) {

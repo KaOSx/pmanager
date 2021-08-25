@@ -9,7 +9,7 @@ import (
 	"pmanager/cmd/update"
 	"pmanager/log"
 
-	_ "pmanager/conf.new"
+	_ "pmanager/conf"
 )
 
 var actions = map[string]func(){

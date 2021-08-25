@@ -1,10 +1,9 @@
 package update
 
 import (
+	"pmanager/conf"
 	"pmanager/database"
-
-	"pmanager/conf.new"
-	"pmanager/util.new/resource"
+	"pmanager/util/resource"
 )
 
 var (
