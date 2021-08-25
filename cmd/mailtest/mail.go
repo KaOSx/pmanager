@@ -7,7 +7,7 @@ import (
 	"pmanager/util.new/mail"
 )
 
-func SendMail([]string) {
+func SendMail() {
 	mail.InitSmtp(
 		conf.String("smtp.host"),
 		conf.String("smtp.port"),
