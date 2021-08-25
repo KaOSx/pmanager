@@ -77,7 +77,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 		q := (new(database.Request)).
 			AddFilter("name", "=", f.Name).
 			AddFilter("version", "=", f.Version).
-			AddFilter("Repository", "=", f.Repository)
+			AddFilter("repository", "=", f.Repository)
 		ok := database.First(&p, q)
 		if ok = ok && p.FlagID == 0; ok {
 			if p.Repository != "build" {
@@ -85,7 +85,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 					new(database.Package),
 					(new(database.Request)).
 						AddFilter("name", "=", p.Name).
-						AddFilter("Repository", "=", "build"),
+						AddFilter("repository", "=", "build"),
 				)
 			}
 		}

@@ -11,7 +11,7 @@ import (
 )
 
 func updateApi(t string) {
-	url := fmt.Sprintf("localhost:%s/update/%s", conf.String("api.port"), t)
+	url := fmt.Sprintf("http://localhost:%s/update/%s", conf.String("api.port"), t)
 	data, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)

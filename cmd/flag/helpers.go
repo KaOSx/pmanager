@@ -35,7 +35,7 @@ func listOffline() (flags []database.Flag) {
 }
 
 func listOnline(port string) (flags []database.Flag) {
-	url := fmt.Sprintf("localhost:%s/flag/list?field=date&asc=0", port)
+	url := fmt.Sprintf("http://localhost:%s/flag/list?field=date&asc=0", port)
 	data, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
@@ -70,7 +70,7 @@ func deleteOnline(ids []uint, port string) (c int) {
 	for i, id := range ids {
 		sids[i] = fmt.Sprint(id)
 	}
-	url := fmt.Sprintf("localhost:%s/flag/delete?ids=%s", port, strings.Join(sids, ","))
+	url := fmt.Sprintf("http://localhost:%s/flag/delete?ids=%s", port, strings.Join(sids, ","))
 	data, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
