@@ -203,6 +203,7 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 			"Filename":      p.Filename,
 			"Flagged":       p.FlagID != 0,
 			"CompleteName":  p.VersionName(),
+			"FullName":      p.FullName(),
 		}
 	}
 

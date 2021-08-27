@@ -190,6 +190,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			"Filename":      p.Filename,
 			"Flagged":       p.FlagID != 0,
 			"CompleteName":  p.VersionName(),
+			"FullName":      p.FullName(),
 		}
 		if p.BuildVersion != nil {
 			data["Build"] = p.BuildVersion.FullName()
