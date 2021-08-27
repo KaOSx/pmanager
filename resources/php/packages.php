@@ -10,7 +10,7 @@ function render()
     global $repolist;
     $form = getParameters();
     $args = [];
-    $sd = '/package/list';
+    $sd   = '/package/list';
     foreach ($form as $k => $v) {
         if ($v !== '') {
             $args[$k] = $v;
@@ -19,8 +19,8 @@ function render()
             $sd = '/repo/list';
         }
     }
-    $ftitle = (isset($args['repo'])) ? $args['repo'] : '';
-    $fdesc  = (isset($repolist[$ftitle])) ? $repolist[$ftitle] : '';
+    $ftitle = $args['repo'] ?? '';
+    $fdesc  = $repolist[$ftitle] ?? '';
     include __DIR__.'/tpl/buttonsbar.php';
     renderForm($form, $ftitle, $fdesc);
     $result = execRequest($sd, $args);
@@ -28,16 +28,16 @@ function render()
         echo 'Internal servor error';
         return;
     }
-    $packages      = isset($result['data']) && is_array($result['data']) ? $result['data'] : [];
-    $pagination    = isset($result['paginate']) ? $result['paginate'] : [
+    $packages      = $result['data'] ?? [];
+    $pagination    = $result['paginate'] ?? [
         'total' => '',
         'page'  => '',
         'last'  => '',
     ];
-    $totalSize     = isset($result['size']) ? $result['size'] : '';
-    $totalPackages = $pagination['total'];
-    $current       = $pagination['page'];
-    $last          = $pagination['last'];
+    $totalSize     = $result['size'] ?? '';
+    $totalPackages = $pagination['total'] ?? '';
+    $current       = $pagination['page'] ?? '';
+    $last          = $pagination['last'] ?? '';
     include __DIR__.'/tpl/packagelist.php';
     renderPagination($current, $last, $args);
 };
