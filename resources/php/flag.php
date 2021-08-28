@@ -18,12 +18,12 @@ function render()
     $package = $result['data'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $repo    = $package['Repository'] ?? '';
-        $pname   = $package['Name']) ?? '';
+        $pname   = $package['Name'] ?? '';
         $version = $package['Version'] ?? '';
-        $email   = $_POST['email']) ?? false;
+        $email   = $_POST['email'] ?? false;
         $comment = $_POST['comment'] ?? false;
 
-        $canNotFlag = ($package['Flagged'] ?? false) || ($package['Build'] ?? false)
+        $canNotFlag = ($package['Flagged'] ?? false) || ($package['Build'] ?? false);
         if (!$canNotFlag && $email && $comment) {
             $comment = str_replace('<br>', "\n", $comment);
             $comment = str_replace("\r\n", "\n", $comment);

@@ -89,7 +89,7 @@
             <?php elseif ($package['Build'] ?? false): ?>
             <td align="center">
                 <div class="Button">
-                    <a href="view.php?name=<?= package['Build'] ?>">View in build</a>
+                    <a href="view.php?name=<?= $package['Build'] ?>">View in build</a>
                 </div>
             </td>
             <?php else: ?>
