@@ -187,7 +187,10 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 		return
 	}
 
-	totalSize := database.SumSizes(q, "package_size")
+	totalSize := int64(0)
+	if pagination.Total > 0 {
+		totalSize = database.SumSizes(q, "package_size")
+	}
 	data := make([]conv.Map, len(packages))
 	for i, p := range packages {
 		data[i] = conv.Map{
