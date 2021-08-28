@@ -78,7 +78,7 @@
             <td>Build date: <?= $package['BuildDate'] ?></td>
         </tr>
         <tr>
-            <td>Packages groups: [<?= implode(' ', $package['Groups'] ?? []) : '' ?>]</td>
+            <td>Packages groups: [<?= implode(' ', $package['Groups'] ?? []) ?>]</td>
         </tr>
         <tr><td></td></tr><tr><td></td></tr>
         <tr>
@@ -86,7 +86,7 @@
             <td class="pkgwarning">
                 <i class="fa fa-flag-checkered text-danger" aria-hidden="true"> This package has been flagged as outdated</i>
             </td>
-            <?php else if ($package['Build'] ?? false): ?>
+            <?php elseif ($package['Build'] ?? false): ?>
             <td align="center">
                 <div class="Button">
                     <a href="view.php?name=<?= package['Build'] ?>">View in build</a>
