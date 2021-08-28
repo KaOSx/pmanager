@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -21,7 +22,9 @@ type database struct {
 
 func newDb(connector gorm.Dialector, tables ...interface{}) (dbl *database, err error) {
 	var db *gorm.DB
-	if db, err = gorm.Open(connector, &gorm.Config{}); err != nil {
+	if db, err = gorm.Open(connector, &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
+	}); err != nil {
 		return
 	}
 	dbl = &database{DB: db}
