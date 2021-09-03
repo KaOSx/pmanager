@@ -35,7 +35,7 @@ function render()
         'Last'    => '',
         'Limit'   => '',
     ];
-    $totalSize     = $result['Size'] ?? '';
+    $totalSize     = $result['size'] ?? '';
     $totalPackages = $pagination['Total'] ?? '';
     $current       = $pagination['Current'] ?? '';
     $last          = $pagination['Last'] ?? '';
