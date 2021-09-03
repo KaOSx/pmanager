@@ -204,6 +204,7 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 			"Md5Sum":        p.Md5Sum,
 			"Sha256Sum":     p.Sha256Sum,
 			"Filename":      p.Filename,
+			"BuildDate":     p.BuildDate,
 			"Flagged":       p.FlagID != 0,
 			"CompleteName":  p.VersionName(),
 			"FullName":      p.FullName(),

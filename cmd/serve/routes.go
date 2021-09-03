@@ -184,6 +184,8 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			"Groups":        p.Groups,
 			"BuildDate":     p.BuildDate,
 			"Depends":       p.Depends,
+			"MakeDepends":   p.MakeDepends,
+			"OptDepends":    p.OptDepends,
 			"Files":         p.Files,
 			"Md5Sum":        p.Md5Sum,
 			"Sha256Sum":     p.Sha256Sum,
