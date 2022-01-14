@@ -15,16 +15,16 @@ package sqlite3
 #cgo CFLAGS: -DHAVE_USLEEP=1
 #cgo CFLAGS: -DSQLITE_ENABLE_FTS3
 #cgo CFLAGS: -DSQLITE_ENABLE_FTS3_PARENTHESIS
-#cgo CFLAGS: -DSQLITE_ENABLE_FTS4_UNICODE61
 #cgo CFLAGS: -DSQLITE_TRACE_SIZE_LIMIT=15
 #cgo CFLAGS: -DSQLITE_OMIT_DEPRECATED
-#cgo CFLAGS: -DSQLITE_DISABLE_INTRINSIC
 #cgo CFLAGS: -DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1
 #cgo CFLAGS: -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT
 #cgo CFLAGS: -Wno-deprecated-declarations
 #cgo linux,!android CFLAGS: -DHAVE_PREAD64=1 -DHAVE_PWRITE64=1
+#cgo openbsd CFLAGS: -I/usr/local/include
+#cgo openbsd LDFLAGS: -L/usr/local/lib
 #ifndef USE_LIBSQLITE3
-#include <sqlite3-binding.h>
+#include "sqlite3-binding.h"
 #else
 #include <sqlite3.h>
 #endif
@@ -830,6 +830,10 @@ func (c *SQLiteConn) exec(ctx context.Context, query string, args []namedValue) 
 		tail := s.(*SQLiteStmt).t
 		s.Close()
 		if tail == "" {
+			if res == nil {
+				// https://github.com/mattn/go-sqlite3/issues/963
+				res = &SQLiteResult{0, 0}
+			}
 			return res, nil
 		}
 		query = tail
@@ -1042,6 +1046,7 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	synchronousMode := "NORMAL"
 	writableSchema := -1
 	vfsName := ""
+	var cacheSize *int64
 
 	pos := strings.IndexRune(dsn, '?')
 	if pos >= 1 {
@@ -1365,6 +1370,18 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 			}
 		}
 
+		// Cache size (_cache_size)
+		//
+		// https://sqlite.org/pragma.html#pragma_cache_size
+		//
+		if val := params.Get("_cache_size"); val != "" {
+			iv, err := strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid _cache_size: %v: %v", val, err)
+			}
+			cacheSize = &iv
+		}
+
 		if val := params.Get("vfs"); val != "" {
 			vfsName = val
 		}
@@ -1398,12 +1415,6 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 		return nil, errors.New("sqlite succeeded without returning a database")
 	}
 
-	rv = C.sqlite3_busy_timeout(db, C.int(busyTimeout))
-	if rv != C.SQLITE_OK {
-		C.sqlite3_close_v2(db)
-		return nil, Error{Code: ErrNo(rv)}
-	}
-
 	exec := func(s string) error {
 		cs := C.CString(s)
 		rv := C.sqlite3_exec(db, cs, nil, nil, nil)
@@ -1412,6 +1423,12 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 			return lastError(db)
 		}
 		return nil
+	}
+
+	// Busy timeout
+	if err := exec(fmt.Sprintf("PRAGMA busy_timeout = %d;", busyTimeout)); err != nil {
+		C.sqlite3_close_v2(db)
+		return nil, err
 	}
 
 	// USER AUTHENTICATION
@@ -1665,13 +1682,21 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	//
 	// Because default is NORMAL this statement is always executed
 	if err := exec(fmt.Sprintf("PRAGMA synchronous = %s;", synchronousMode)); err != nil {
-		C.sqlite3_close_v2(db)
+		conn.Close()
 		return nil, err
 	}
 
 	// Writable Schema
 	if writableSchema > -1 {
 		if err := exec(fmt.Sprintf("PRAGMA writable_schema = %d;", writableSchema)); err != nil {
+			C.sqlite3_close_v2(db)
+			return nil, err
+		}
+	}
+
+	// Cache Size
+	if cacheSize != nil {
+		if err := exec(fmt.Sprintf("PRAGMA cache_size = %d;", *cacheSize)); err != nil {
 			C.sqlite3_close_v2(db)
 			return nil, err
 		}
@@ -1986,6 +2011,13 @@ func (s *SQLiteStmt) execSync(args []namedValue) (driver.Result, error) {
 	}
 
 	return &SQLiteResult{id: int64(rowid), changes: int64(changes)}, nil
+}
+
+// Readonly reports if this statement is considered readonly by SQLite.
+//
+// See: https://sqlite.org/c3ref/stmt_readonly.html
+func (s *SQLiteStmt) Readonly() bool {
+	return C.sqlite3_stmt_readonly(s.s) == 1
 }
 
 // Close the rows.
