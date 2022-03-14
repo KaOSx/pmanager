@@ -23,7 +23,7 @@ $packages = isset($result['data']) && is_array($result['data']) ? $result['data'
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Raleway:400,700" rel="stylesheet">
         <script src="https://use.fontawesome.com/cbedfa5cad.js"></script>
-        
+
         <style>
             body {
                 font: 85% "Open Sans", sans-serif;
@@ -34,9 +34,9 @@ $packages = isset($result['data']) && is_array($result['data']) ? $result['data'
                 margin-right: auto;
                 width: 98%;
             }
-            span { 
+            span {
                 display: block;
-                width: 98%
+                width: 98%;
                 height: 10px;
                 padding: 1px;
             }
@@ -46,25 +46,25 @@ $packages = isset($result['data']) && is_array($result['data']) ? $result['data'
                 padding: 0px;
                 height: 0px;
             }
-            h3 { 
+            h3 {
                 font-family: "Raleway", sans-serif;
                 font-size: 18px;
                 font-weight: 700;
-                margin-bottom: 10; 
+                margin-bottom: 10;
                 color: #272727;
             }
-            a:link { 
-                font-weight: normal; 
-                text-decoration: none; 
+            a:link {
+                font-weight: normal;
+                text-decoration: none;
                 color: #3C5675;
             }
-            a:visited { 
-                font-weight: bold; 
-                text-decoration: none; 
+            a:visited {
+                font-weight: bold;
+                text-decoration: none;
                 color: #333333;
             }
-            a:hover, a:active { 
-                text-decoration: none; 
+            a:hover, a:active {
+                text-decoration: none;
                 color: #31A3DD;
             }
         </style>
