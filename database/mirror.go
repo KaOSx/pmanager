@@ -75,6 +75,9 @@ func parsePacmanMirrors(uri string, repos []string) (countries []Country, err er
 			country.Name = strings.TrimSpace(line[1:])
 		}
 	}
+	if country != nil && len(country.Mirrors) > 0 {
+		countries = append(countries, *country)
+	}
 	sort.Slice(countries, func(i, j int) bool {
 		c1, c2 := countries[i].Name, countries[j].Name
 		if strings.HasPrefix(c1, "Default") {
