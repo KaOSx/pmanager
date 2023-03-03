@@ -30,15 +30,18 @@ func listOffline() (flags []database.Flag) {
 		&flags,
 		database.NewOrderRequest(database.NewSort("created_at", true)),
 	)
+
 	return
 }
 
 func listOnline(port string) (flags []database.Flag) {
 	url := fmt.Sprintf("http://localhost:%s/flag/list?field=date&asc=0", port)
 	data, err := http.Get(url)
+
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	if data.Body != nil {
 		defer data.Body.Close()
 		m := make(conv.Map)
@@ -49,14 +52,17 @@ func listOnline(port string) (flags []database.Flag) {
 			}
 		}
 	}
+
 	return
 }
 
 func listFlags() []database.Flag {
 	port := conf.String("api.port")
+
 	if resource.IsPortOpen("localhost", port) {
 		return listOnline(port)
 	}
+
 	return listOffline()
 }
 
@@ -69,25 +75,31 @@ func deleteOnline(ids []uint, port string) (c int) {
 	for i, id := range ids {
 		sids[i] = fmt.Sprint(id)
 	}
+
 	url := fmt.Sprintf("http://localhost:%s/flag/delete?ids=%s", port, strings.Join(sids, ","))
 	data, err := http.Get(url)
+
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	if data.Body != nil {
 		defer data.Body.Close()
 		m := make(conv.Map)
 		conv.ReadJson(data.Body, &m)
 		c = int(m.GetInt("flags_deleted"))
 	}
+
 	return
 }
 
 func deleteFlags(ids []uint) int {
 	port := conf.String("api.port")
+
 	if resource.IsPortOpen("localhost", port) {
 		return deleteOnline(ids, port)
 	}
+
 	return deleteOffline(ids)
 }
 
@@ -99,6 +111,7 @@ func getRange(arg string, c int) (rg []int) {
 		}
 		return
 	}
+
 	srg := strings.Split(arg, ",")
 	for _, e := range srg {
 		r := strings.SplitN(e, "-", 2)
@@ -121,12 +134,14 @@ func getRange(arg string, c int) (rg []int) {
 			}
 		}
 	}
+
 	return
 }
 
 func getIds(args []string, flags []database.Flag) (ids []uint) {
 	c := len(flags)
 	done := make(map[int]bool)
+
 	for _, e := range args {
 		rg := getRange(e, c)
 		for _, i := range rg {
@@ -136,5 +151,6 @@ func getIds(args []string, flags []database.Flag) (ids []uint) {
 			}
 		}
 	}
+
 	return
 }

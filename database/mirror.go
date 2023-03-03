@@ -20,6 +20,7 @@ func parsePacmanConf(uri string) (repos []string, err error) {
 	if data, err = resource.Open(uri); err != nil {
 		return
 	}
+
 	sc := bufio.NewScanner(data)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -32,11 +33,13 @@ func parsePacmanConf(uri string) (repos []string, err error) {
 			repos = append(repos, name)
 		}
 	}
+
 	for _, r := range repos {
 		if r == "build" {
 			return
 		}
 	}
+
 	return append(repos, "build"), nil
 }
 
@@ -45,6 +48,7 @@ func newRepos(repos []string) []Repo {
 	for i, r := range repos {
 		out[i].Name = r
 	}
+
 	return out
 }
 
@@ -53,6 +57,7 @@ func parsePacmanMirrors(uri string, repos []string) (countries []Country, err er
 	if data, err = resource.Open(uri); err != nil {
 		return
 	}
+
 	var country *Country
 	sc := bufio.NewScanner(data)
 	for sc.Scan() {
@@ -75,9 +80,11 @@ func parsePacmanMirrors(uri string, repos []string) (countries []Country, err er
 			country.Name = strings.TrimSpace(line[1:])
 		}
 	}
+
 	if country != nil && len(country.Mirrors) > 0 {
 		countries = append(countries, *country)
 	}
+
 	sort.Slice(countries, func(i, j int) bool {
 		c1, c2 := countries[i].Name, countries[j].Name
 		if strings.HasPrefix(c1, "Default") {
@@ -88,14 +95,17 @@ func parsePacmanMirrors(uri string, repos []string) (countries []Country, err er
 		}
 		return c1 < c2
 	})
+
 	return
 }
 
 func getRepoMd5(mirror, repo string) (md5sum string, err error) {
 	url := fmt.Sprintf("%s%s/%s.db.tar.gz", mirror, repo, repo)
+
 	log.Debugf("Begin check md5 from %s\n", url)
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
+
 	if err == nil {
 		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
@@ -108,7 +118,9 @@ func getRepoMd5(mirror, repo string) (md5sum string, err error) {
 			log.Debugf("check md5 from %s successful\n", url)
 		}
 	}
+
 	log.Debugf("End check md5 from %s\n", url)
+
 	return
 }
 
@@ -116,6 +128,7 @@ func getMirrorMd5(mirror *Mirror) {
 	if mirror.Online = resource.Exists(mirror.Name); !mirror.Online {
 		return
 	}
+
 	var wg sync.WaitGroup
 	for i := range mirror.Repos {
 		wg.Add(1)
@@ -126,6 +139,7 @@ func getMirrorMd5(mirror *Mirror) {
 			}
 		}(&mirror.Repos[i])
 	}
+
 	wg.Wait()
 }
 
@@ -133,6 +147,7 @@ func checkMd5(mirror, mainMirror *Mirror) {
 	if !mirror.Online {
 		return
 	}
+
 	for i := range mirror.Repos {
 		repo := &mirror.Repos[i]
 		repo.Sync = repo.md5 != "" && repo.md5 == mainMirror.Repos[i].md5
@@ -145,16 +160,19 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []C
 		err = fmt.Errorf("pacman.conf → %s (%s)", pacmanConf)
 		return
 	}
+
 	if log.Debug {
 		log.Println("Found repos:")
 		for _, r := range repos {
 			log.Println(" -", r)
 		}
 	}
+
 	if countries, err = parsePacmanMirrors(pacmanMirrors, repos); err != nil {
 		err = fmt.Errorf("mirrorlist → %s (%s)", pacmanMirrors)
 		return
 	}
+
 	if log.Debug {
 		log.Println("Found mirrors:")
 		for _, c := range countries {
@@ -164,6 +182,7 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []C
 			}
 		}
 	}
+
 	var mirrors []*Mirror
 	var mainMirror *Mirror
 	for i := range countries {
@@ -176,6 +195,7 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []C
 			}
 		}
 	}
+
 	var wg sync.WaitGroup
 	for _, m := range mirrors {
 		wg.Add(1)
@@ -185,9 +205,11 @@ func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []C
 		}(m)
 	}
 	wg.Wait()
+
 	for _, m := range mirrors {
 		checkMd5(m, mainMirror)
 	}
+
 	return
 }
 
@@ -205,6 +227,7 @@ func updateMirrors(countries []Country) func(*gorm.DB) error {
 		if err := tx.Where("1 = 1").Unscoped().Delete(&Country{}).Error; err != nil {
 			return err
 		}
+
 		return tx.Create(&countries).Error
 	}
 }

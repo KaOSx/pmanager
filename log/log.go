@@ -67,22 +67,25 @@ func Init(logpath string) {
 	logsingleton = &logger{
 		logpath: logpath,
 	}
+
 	logdir := path.Dir(logpath)
 	if err := os.MkdirAll(logdir, 0755); err != nil {
 		logsingleton.logpath = "stdout"
 	}
 }
 
-func logf(prefix, tmpl string, args ...interface{}) {
+func logf(prefix, tmpl string, args ...any) {
 	if prefix == cError {
 		tmpl = "\033[1;31m" + tmpl + "\033[m"
 	}
+
 	logsingleton.open(prefix)
 	defer logsingleton.close()
+
 	logsingleton.Printf(tmpl, args...)
 }
 
-func logln(prefix string, args ...interface{}) {
+func logln(prefix string, args ...any) {
 	if prefix == cError {
 		strargs := make([]string, len(args))
 		for i, e := range args {
@@ -91,54 +94,58 @@ func logln(prefix string, args ...interface{}) {
 		logf(prefix, "%s", strings.Join(strargs, " "))
 		return
 	}
+
 	logsingleton.open(prefix)
 	defer logsingleton.close()
+
 	logsingleton.Println(args...)
 }
 
-func Printf(tmpl string, args ...interface{}) {
+func Printf(tmpl string, args ...any) {
 	logf(cInfo, tmpl, args...)
 }
 
-func Println(args ...interface{}) {
+func Println(args ...any) {
 	logln(cInfo, args...)
 }
 
-func Warnf(tmpl string, args ...interface{}) {
+func Warnf(tmpl string, args ...any) {
 	logf(cWarning, tmpl, args...)
 }
 
-func Warnln(args ...interface{}) {
+func Warnln(args ...any) {
 	logln(cWarning, args...)
 }
 
-func Errorf(tmpl string, args ...interface{}) {
+func Errorf(tmpl string, args ...any) {
 	logf(cError, tmpl, args...)
 }
 
-func Errorln(args ...interface{}) {
+func Errorln(args ...any) {
 	logln(cError, args...)
 }
 
-func Fatalf(tmpl string, args ...interface{}) {
+func Fatalf(tmpl string, args ...any) {
 	logsingleton.open(cFatal)
 	defer logsingleton.close()
+
 	logsingleton.Fatalf(tmpl, args...)
 }
 
-func Fatalln(args ...interface{}) {
+func Fatalln(args ...any) {
 	logsingleton.open(cFatal)
 	defer logsingleton.close()
+
 	logsingleton.Fatalln(args...)
 }
 
-func Debugln(v ...interface{}) {
+func Debugln(v ...any) {
 	if Debug {
 		Println(v...)
 	}
 }
 
-func Debugf(f string, v ...interface{}) {
+func Debugf(f string, v ...any) {
 	if Debug {
 		Printf(f, v...)
 	}
@@ -146,6 +153,7 @@ func Debugf(f string, v ...interface{}) {
 
 func Copy(r io.Reader) {
 	var buf strings.Builder
+
 	io.Copy(&buf, r)
 	Println(buf.String())
 }

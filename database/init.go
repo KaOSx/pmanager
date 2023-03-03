@@ -125,6 +125,7 @@ func Load(uri string) {
 	if dbsingleton, err = newDb(load(uri)); err != nil {
 		log.Fatalf("Failed to load the database: %s\n", err)
 	}
+
 	err = dbsingleton.AutoMigrate(
 		&Git{},
 		&Flag{},

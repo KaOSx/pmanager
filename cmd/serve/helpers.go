@@ -15,9 +15,11 @@ import (
 func getMailSubjectAndBody(p database.Package, cr string) (subject, body string) {
 	pname := p.FullName()
 	comment := p.Flag.Comment
+
 	if cr != "\n" {
 		comment = strings.ReplaceAll(comment, "\n", cr)
 	}
+
 	bodyLines := []string{
 		fmt.Sprintf("Package details: %s/view.php?name=%s", conf.String("main.viewurl"), pname),
 		"",
@@ -29,14 +31,17 @@ func getMailSubjectAndBody(p database.Package, cr string) (subject, body string)
 		"Additional informations:",
 		comment,
 	}
+
 	subject = fmt.Sprintf("The package %s has been flagged as outdated", pname)
 	body = strings.Join(bodyLines, cr)
+
 	return
 }
 
 func sendMail(p database.Package) {
 	subject, body := getMailSubjectAndBody(p, "\r\n")
 	var m mail.Mail
+
 	m.From(conf.String("smtp.send_from")).
 		To(conf.String("smtp.send_to")).
 		Header("Reply-To", conf.String("smtp.send_to")).
@@ -56,14 +61,16 @@ func debugRequest(r *http.Request, code int) {
 	log.Debugf("%s %s (%d) %s %s\n", r.Method, r.RequestURI, code, r.RemoteAddr, r.Header.Get("user-agent"))
 }
 
-func writeResponse(r *http.Request, w http.ResponseWriter, data interface{}, codes ...int) {
+func writeResponse(r *http.Request, w http.ResponseWriter, data any, codes ...int) {
 	code := http.StatusOK
 	if len(codes) == 1 {
 		code = codes[0]
 	}
+
 	debugRequest(r, code)
 	w.WriteHeader(code)
 	b := conv.ToJson(data, log.Debug)
+
 	if _, err := w.Write(b); err == nil {
 		w.Header().Add("Content-Type", "application/json")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -74,9 +81,12 @@ func writeResponse(r *http.Request, w http.ResponseWriter, data interface{}, cod
 	}
 }
 
-func getString(r *http.Request, key string) string  { return r.FormValue(key) }
-func getInt(r *http.Request, key string) int64      { return conv.String2Int(getString(r, key)) }
-func getBool(r *http.Request, key string) bool      { return conv.String2Bool(getString(r, key)) }
+func getString(r *http.Request, key string) string { return r.FormValue(key) }
+
+func getInt(r *http.Request, key string) int64 { return conv.String2Int(getString(r, key)) }
+
+func getBool(r *http.Request, key string) bool { return conv.String2Bool(getString(r, key)) }
+
 func getDate(r *http.Request, key string) time.Time { return conv.String2Date(getString(r, key)) }
 
 func initPaginationQuery(r *http.Request) *database.Request {
@@ -84,10 +94,12 @@ func initPaginationQuery(r *http.Request) *database.Request {
 	if page <= 0 {
 		page = 1
 	}
+
 	limit := getInt(r, "limit")
 	if limit <= 0 {
 		limit = defaultPagination
 	}
+
 	return (new(database.Request)).SetLimit(limit).SetPage(page)
 }
 
@@ -97,6 +109,7 @@ func like(str string) string {
 
 func getFilter(r *http.Request, fields ...string) conv.Map {
 	m := make(conv.Map)
+
 	for _, f := range fields {
 		t := "s"
 		if i := strings.Index(f, "|"); i >= 0 {
@@ -118,11 +131,13 @@ func getFilter(r *http.Request, fields ...string) conv.Map {
 			m[f] = getString(r, f)
 		}
 	}
+
 	return m
 }
 
 func getSort(r *http.Request, authorized_fields ...string) conv.Map {
 	field := getString(r, "sortby")
+
 	for _, f := range authorized_fields {
 		if field == f {
 			return conv.Map{
@@ -131,6 +146,7 @@ func getSort(r *http.Request, authorized_fields ...string) conv.Map {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -138,6 +154,7 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 	q := initPaginationQuery(r)
 	ms := getSort(r, "name", "repo", "date", "flagged")
 	mf := getFilter(r, "search", "from|d", "to|d", "flagged|b", "exact|b")
+
 	if repository != "" {
 		mf["repo"] = repository
 	}
@@ -149,15 +166,19 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 		}
 		q.AddFilter(f, op, v)
 	}
+
 	if mf.Exists("from") {
 		q.AddFilter("build_date", ">=", mf.GetDate("from"))
 	}
+
 	if mf.Exists("to") {
 		q.AddFilter("build_date", "<=", mf.GetDate("to"))
 	}
+
 	if mf.Exists("repo") {
 		q.AddFilter("repository", "=", repository)
 	}
+
 	if mf.Exists("flagged") {
 		op := "="
 		if mf.GetBool("flagged") {
@@ -165,6 +186,7 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 		}
 		q.AddFilter("flag_id", op, 0)
 	}
+
 	if ms != nil {
 		field := ms.GetString("field")
 		desc := !ms.GetBool("asc")
@@ -191,7 +213,9 @@ func getPackages(w http.ResponseWriter, r *http.Request, repository string) {
 	if pagination.Total > 0 {
 		totalSize = database.SumSizes(q, "package_size")
 	}
+
 	data := make([]conv.Map, len(packages))
+
 	for i, p := range packages {
 		data[i] = conv.Map{
 			"Repository":    p.Repository,

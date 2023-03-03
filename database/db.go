@@ -20,22 +20,26 @@ type database struct {
 	*gorm.DB
 }
 
-func newDb(connector gorm.Dialector, tables ...interface{}) (dbl *database, err error) {
+func newDb(connector gorm.Dialector, tables ...any) (dbl *database, err error) {
 	var db *gorm.DB
-	if db, err = gorm.Open(connector, &gorm.Config{
+	db, err = gorm.Open(connector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
-	}); err != nil {
+	})
+	if err != nil {
 		return
 	}
+
 	dbl = &database{DB: db}
 	err = dbl.AutoMigrate(tables...)
+
 	return
 }
 
 type SqlSlice []string
 
-func (sl *SqlSlice) Scan(v interface{}) error {
+func (sl *SqlSlice) Scan(v any) error {
 	var bytes []byte
+
 	switch v.(type) {
 	case []byte:
 		bytes = v.([]byte)
@@ -44,6 +48,7 @@ func (sl *SqlSlice) Scan(v interface{}) error {
 	default:
 		return fmt.Errorf("%v is not convertible to database.SqlSlice", v)
 	}
+
 	return json.Unmarshal(bytes, sl)
 }
 
@@ -54,6 +59,7 @@ func (SqlSlice) GormDataType() string {
 func (sl SqlSlice) Value() (driver.Value, error) {
 	var v strings.Builder
 	enc := json.NewEncoder(&v)
+
 	if err := enc.Encode(sl); err != nil {
 		return nil, err
 	}
@@ -64,57 +70,60 @@ func (sl1 SqlSlice) Equal(sl2 SqlSlice) bool {
 	if len(sl1) != len(sl2) {
 		return false
 	}
+
 	for i, e := range sl1 {
 		if sl2[i] != e {
 			return false
 		}
 	}
+
 	return true
 }
 
 type Filter struct {
-	f string
-	o string
-	v interface{}
+	field     string
+	operation string
+	value     any
 }
 
 func (f Filter) String() string {
-	return fmt.Sprintf("%s %s ?", f.f, f.o)
+	return fmt.Sprintf("%s %s ?", f.field, f.operation)
 }
 
-func NewFilter(field, operation string, value interface{}) Filter {
+func NewFilter(field, operation string, value any) Filter {
 	return Filter{
-		f: field,
-		o: operation,
-		v: value,
+		field:     field,
+		operation: operation,
+		value:     value,
 	}
 }
 
 type Sort struct {
-	f string
-	d bool
+	field string
+	desc  bool
 }
 
 func NewSort(field string, desc bool) Sort {
 	return Sort{
-		f: field,
-		d: desc,
+		field: field,
+		desc:  desc,
 	}
 }
 
 func (s Sort) String() string {
-	dir := "ASC"
-	if s.d {
-		dir = "DESC"
+	direction := "ASC"
+	if s.desc {
+		direction = "DESC"
 	}
-	return fmt.Sprintf("%s %s", s.f, dir)
+
+	return fmt.Sprintf("%s %s", s.field, direction)
 }
 
 type Request struct {
-	f []Filter
-	s []Sort
-	l int64
-	o int64
+	filters []Filter
+	sorts   []Sort
+	lim     int64
+	off     int64
 }
 
 type Pagination struct {
@@ -127,33 +136,36 @@ type Pagination struct {
 
 func (r *Request) where() func(*gorm.DB) *gorm.DB {
 	return func(sc *gorm.DB) *gorm.DB {
-		l := len(r.f)
+		l := len(r.filters)
 		if l == 0 {
 			return sc
 		}
-		filters, values := make([]string, l), make([]interface{}, l)
-		for i, ff := range r.f {
-			filters[i] = ff.String()
-			values[i] = ff.v
+
+		filters, values := make([]string, l), make([]any, l)
+		for i, f := range r.filters {
+			filters[i] = f.String()
+			values[i] = f.value
 		}
 		filter := strings.Join(filters, " AND ")
+
 		return sc.Where(filter, values...)
 	}
 }
 
 func (r *Request) order() func(*gorm.DB) *gorm.DB {
 	return func(sc *gorm.DB) *gorm.DB {
-		for _, s := range r.s {
+		for _, s := range r.sorts {
 			sc = sc.Order(s.String())
 		}
+
 		return sc
 	}
 }
 
 func (r *Request) limit() func(*gorm.DB) *gorm.DB {
 	return func(sc *gorm.DB) *gorm.DB {
-		if r.l > 0 {
-			return sc.Limit(int(r.l))
+		if r.lim > 0 {
+			return sc.Limit(int(r.lim))
 		}
 		return sc
 	}
@@ -161,8 +173,8 @@ func (r *Request) limit() func(*gorm.DB) *gorm.DB {
 
 func (r *Request) offset() func(*gorm.DB) *gorm.DB {
 	return func(sc *gorm.DB) *gorm.DB {
-		if r.o > 0 {
-			return sc.Offset(int(r.o))
+		if r.off > 0 {
+			return sc.Offset(int(r.off))
 		}
 		return sc
 	}
@@ -171,11 +183,12 @@ func (r *Request) offset() func(*gorm.DB) *gorm.DB {
 func (r *Request) paginate(total int64) (p Pagination) {
 	p = Pagination{
 		Total:   total,
-		Limit:   r.l,
-		Offset:  r.o,
+		Limit:   r.lim,
+		Offset:  r.off,
 		Current: 1,
 		Last:    1,
 	}
+
 	if p.Limit <= 0 {
 		p.Limit = total
 	}
@@ -187,26 +200,29 @@ func (r *Request) paginate(total int64) (p Pagination) {
 	}
 	p.Current = p.Offset/p.Limit + 1
 	p.Last = (p.Total-1)/p.Limit + 1
+
 	return
 }
 
 func NewRequest(filters []Filter, sorts []Sort, pageLimit ...int64) *Request {
 	r := Request{
-		f: filters,
-		s: sorts,
-		l: -1,
-		o: -1,
+		filters: filters,
+		sorts:   sorts,
+		lim:     -1,
+		off:     -1,
 	}
+
 	if len(pageLimit) > 0 {
-		l := int64(50)
+		limit := int64(50)
 		if len(pageLimit) > 1 {
-			l = pageLimit[1]
+			limit = pageLimit[1]
 		}
-		p := pageLimit[0]
-		if l > 0 {
-			r.SetLimit(l).SetPage(p)
+		page := pageLimit[0]
+		if limit > 0 {
+			r.SetLimit(limit).SetPage(page)
 		}
 	}
+
 	return &r
 }
 
@@ -218,26 +234,30 @@ func NewOrderRequest(sorts ...Sort) *Request {
 	return NewRequest(nil, sorts)
 }
 
-func (r *Request) AddFilter(field, operation string, value interface{}) *Request {
-	r.f = append(r.f, NewFilter(field, operation, value))
+func (r *Request) AddFilter(field, operation string, value any) *Request {
+	r.filters = append(r.filters, NewFilter(field, operation, value))
+
 	return r
 }
 
 func (r *Request) AddSort(field string, desc bool) *Request {
-	r.s = append(r.s, NewSort(field, desc))
+	r.sorts = append(r.sorts, NewSort(field, desc))
+
 	return r
 }
 
 func (r *Request) SetLimit(limit int64) *Request {
-	r.l = limit
+	r.lim = limit
+
 	return r
 }
 
 func (r *Request) SetPage(page int64) *Request {
-	if r.l > 0 {
+	if r.lim > 0 {
 		if page > 0 {
-			r.o = (page - 1) * r.l
+			r.off = (page - 1) * r.lim
 		}
 	}
+
 	return r
 }

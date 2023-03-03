@@ -12,9 +12,11 @@ import (
 func updateApi(t string) {
 	url := fmt.Sprintf("http://localhost:%s/update/%s", conf.String("api.port"), t)
 	data, err := http.Get(url)
+
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	if data.Body != nil {
 		defer data.Body.Close()
 		log.Copy(data.Body)
@@ -23,6 +25,7 @@ func updateApi(t string) {
 
 func updateServer(t string) {
 	data := upd[t]()
+
 	if data != nil {
 		var buf bytes.Buffer
 		if conv.WriteJson(&buf, data, log.Debug) != nil {

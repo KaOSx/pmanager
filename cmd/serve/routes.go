@@ -65,6 +65,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			writeResponse(r, w, conv.Map{"data": nil}, http.StatusInternalServerError)
 			return
 		}
+
 		f := database.Flag{
 			Name:       getString(r, "name"),
 			Version:    getString(r, "version"),
@@ -77,6 +78,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			AddFilter("name", "=", f.Name).
 			AddFilter("version", "=", f.Version).
 			AddFilter("repository", "=", f.Repository)
+
 		ok := database.First(&p, q)
 		if ok = ok && p.FlagID == 0; ok {
 			if p.Repository != "build" {
@@ -88,6 +90,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 				)
 			}
 		}
+
 		code := http.StatusOK
 		if !ok {
 			code = http.StatusNotFound
@@ -101,6 +104,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 				code = http.StatusInternalServerError
 			}
 		}
+
 		writeResponse(r, w, conv.Map{
 			"data": f,
 		}, code)
@@ -108,6 +112,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	"/flag/delete": func(w http.ResponseWriter, r *http.Request) {
 		sids := strings.Split(getString(r, "ids"), ",")
 		ids := make([]uint, len(sids))
+
 		for i, sid := range sids {
 			if id, err := strconv.ParseUint(sid, 10, 64); err == nil {
 				ids[i] = uint(id)
@@ -116,6 +121,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 				return
 			}
 		}
+
 		c := database.DeleteFlags(ids)
 		writeResponse(r, w, conv.Map{
 			"flags_deleted": c,
@@ -123,6 +129,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	},
 	"/mirror": func(w http.ResponseWriter, r *http.Request) {
 		var countries []database.Country
+
 		database.SearchAll(&countries, "Mirrors.Repos")
 		writeResponse(r, w, countries)
 	},
@@ -161,6 +168,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
 			return
 		}
+
 		var p database.Package
 		if !database.GetPackage(
 			&p,
@@ -172,6 +180,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
 			return
 		}
+
 		data := conv.Map{
 			"Repository":    p.Repository,
 			"Name":          p.Name,
@@ -194,9 +203,11 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			"CompleteName":  p.VersionName(),
 			"FullName":      p.FullName(),
 		}
+
 		if p.BuildVersion != nil {
 			data["Build"] = p.BuildVersion.FullName()
 		}
+
 		url := conv.Map{
 			"Upstream": p.URL,
 			"Download": conf.String("main.repourl") + p.Repository + "/" + p.Filename,
@@ -209,6 +220,7 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 			url["PKGBUILD"] = gurl + "/blob/master/" + g.Folder + "/PKGBUILD"
 			url["Commits"] = gurl + "/commits/master/" + g.Folder + "/PKGBUILD"
 		}
+
 		data["URL"] = url
 		writeResponse(r, w, conv.Map{"data": data})
 	},
@@ -218,12 +230,14 @@ var routes = map[string]func(http.ResponseWriter, *http.Request){
 	"/repo/list": func(w http.ResponseWriter, r *http.Request) {
 		repos := conf.Slice("repository.include")
 		repo := getString(r, "repo")
+
 		for _, e := range repos {
 			if e == repo {
 				getPackages(w, r, repo)
 				return
 			}
 		}
+
 		writeResponse(r, w, conv.Map{"data": nil}, http.StatusNotFound)
 	},
 }

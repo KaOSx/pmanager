@@ -9,6 +9,7 @@ import (
 
 func Exec() {
 	var flags []database.Flag
+
 	for {
 		args := shell.Prompt("> ")
 		if len(args) == 0 {

@@ -33,8 +33,10 @@ func (s server) dial() (net.Conn, error) {
 			InsecureSkipVerify: true,
 			ServerName:         s.host,
 		}
+
 		return tls.Dial("tcp", s.name(), tlsconfig)
 	}
+
 	return net.Dial("tcp", s.name())
 }
 
@@ -43,10 +45,12 @@ func (s server) client() (*smtp.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	c, err := smtp.NewClient(dial, s.host)
 	if err == nil {
 		err = c.Auth(s.auth())
 	}
+
 	return c, err
 }
 
@@ -55,23 +59,28 @@ func (s server) send(m Mail) error {
 	if err != nil {
 		return err
 	}
+
 	if err := c.Mail(m.from); err != nil {
 		return err
 	}
+
 	for _, t := range m.to {
 		if err := c.Rcpt(t); err != nil {
 			return err
 		}
 	}
+
 	wc, err := c.Data()
 	if err != nil {
 		return err
 	}
 	defer wc.Close()
+
 	_, err = bufio.NewReader(m.Reader()).WriteTo(wc)
 	if err != nil {
 		return err
 	}
+
 	return c.Quit()
 }
 

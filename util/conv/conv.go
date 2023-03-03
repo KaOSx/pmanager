@@ -9,19 +9,22 @@ import (
 	"time"
 )
 
-func Slice2String(s []string) string  { return strings.Join(s, ",") }
-func Any2String(v interface{}) string { return fmt.Sprint(v) }
+func Slice2String(s []string) string { return strings.Join(s, ",") }
+func Any2String(v any) string        { return fmt.Sprint(v) }
 
 func String2Int(s string) int64 {
 	i, _ := strconv.ParseInt(s, 10, 64)
+
 	return i
 }
+
 func Bool2Int(b bool) int64 {
 	if b {
 		return 1
 	}
 	return 0
 }
+
 func Date2Int(d time.Time) int64 { return d.Unix() }
 
 func String2Slice(s string) []string {
@@ -29,19 +32,24 @@ func String2Slice(s string) []string {
 	for i, e := range out {
 		out[i] = strings.TrimSpace(e)
 	}
+
 	return out
 }
 
 func String2Bool(s string) bool {
 	b, _ := strconv.ParseBool(s)
+
 	return b
 }
+
 func Int2Bool(i int64) bool { return i != 0 }
 
 func reg(s string) *regexp.Regexp { return regexp.MustCompile(s) }
-func match(r, s string) bool      { return reg(r).MatchString(s) }
+
+func match(r, s string) bool { return reg(r).MatchString(s) }
 
 func Int2Date(i int64) time.Time { return time.Unix(i, 0) }
+
 func String2Date(s string) time.Time {
 	switch {
 	case match(`^\d{4}.\d{2}.\d{2}$`, s):
@@ -58,14 +66,16 @@ func String2Date(s string) time.Time {
 	case match(`^\d+$`, s):
 		return Int2Date(String2Int(s))
 	}
+
 	d, _ := time.Parse(time.RFC3339, s)
 	return d
 }
 
-type Map map[string]interface{}
+type Map map[string]any
 
 func (m Map) Exists(key string) bool {
 	_, ok := m[key]
+
 	return ok
 }
 
@@ -80,6 +90,7 @@ func (m Map) GetString(key string) (e string) {
 			e = Any2String(v)
 		}
 	}
+
 	return
 }
 
@@ -97,6 +108,7 @@ func (m Map) GetInt(key string) (e int64) {
 			e = Bool2Int(rv.Bool())
 		}
 	}
+
 	return
 }
 
@@ -113,6 +125,7 @@ func (m Map) GetBool(key string) (e bool) {
 			e = String2Bool(v.(string))
 		}
 	}
+
 	return
 }
 
@@ -125,6 +138,7 @@ func (m Map) GetSlice(key string) (e []string) {
 			e = String2Slice(v.(string))
 		}
 	}
+
 	return
 }
 
@@ -141,6 +155,7 @@ func (m Map) GetDate(key string) (e time.Time) {
 			e = String2Date(v.(string))
 		}
 	}
+
 	return
 }
 
@@ -148,5 +163,6 @@ func (m Map) Delete(keys ...string) Map {
 	for _, k := range keys {
 		delete(m, k)
 	}
+
 	return m
 }

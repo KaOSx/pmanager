@@ -16,12 +16,15 @@ import (
 
 func getIncludes(includes, excludes []string) map[string]bool {
 	m := make(map[string]bool)
+
 	for _, i := range includes {
 		m[i] = true
 	}
+
 	for _, e := range excludes {
 		delete(m, e)
 	}
+
 	return m
 }
 
@@ -31,16 +34,20 @@ func getRepoFilePath(base, repoName, extension string) string {
 
 func scanDesc(sc *bufio.Scanner, p *Package) {
 	var section string
+
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		l := len(line)
+
 		if l == 0 {
 			continue
 		}
+
 		if line[0] == '%' && line[l-1] == '%' {
 			section = line[1 : l-1]
 			continue
 		}
+
 		switch section {
 		case "NAME":
 			p.Name = line
@@ -81,16 +88,20 @@ func scanDesc(sc *bufio.Scanner, p *Package) {
 
 func scanFiles(sc *bufio.Scanner, p *Package) {
 	var section string
+
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		l := len(line)
+
 		if l == 0 {
 			continue
 		}
+
 		if line[0] == '%' && line[l-1] == '%' {
 			section = line[1 : l-1]
 			continue
 		}
+
 		if section == "FILES" {
 			p.Files = append(p.Files, line)
 		}
@@ -100,11 +111,13 @@ func scanFiles(sc *bufio.Scanner, p *Package) {
 func parseRepoFile(base, repoName, extension string) (repo []Package, err error) {
 	fp := getRepoFilePath(base, repoName, extension)
 	log.Debugf("Extracting %s\n", fp)
+
 	tf, err := resource.OpenArchive(fp)
 	if err != nil {
 		log.Debugf("\033[1;31mFailed to extract %s: %s\033[m\n", fp, err)
 		return
 	}
+
 	packages := make(map[string]*Package)
 	for {
 		hdr, e := tf.Next()
@@ -114,13 +127,16 @@ func parseRepoFile(base, repoName, extension string) (repo []Package, err error)
 			}
 			break
 		}
+
 		if hdr.FileInfo().IsDir() {
 			continue
 		}
+
 		suffix := path.Base(hdr.Name)
 		if suffix != "desc" && suffix != "files" {
 			continue
 		}
+
 		pn := path.Base(strings.TrimSuffix(hdr.Name, suffix))
 		p, ok := packages[pn]
 		if !ok {
@@ -128,10 +144,12 @@ func parseRepoFile(base, repoName, extension string) (repo []Package, err error)
 			p = &repo[len(repo)-1]
 			packages[pn] = p
 		}
+
 		var buf bytes.Buffer
 		if _, err = io.Copy(&buf, tf); err != nil {
 			break
 		}
+
 		sc := bufio.NewScanner(&buf)
 		if suffix == "desc" {
 			scanDesc(sc, p)
@@ -140,6 +158,7 @@ func parseRepoFile(base, repoName, extension string) (repo []Package, err error)
 		}
 	}
 	log.Debugf("Extract of %s done! (%d packages)\n", repoName, len(repo))
+
 	return
 }
 
@@ -148,12 +167,14 @@ func getRepoNames(base string, incl map[string]bool) (repo []string, err error) 
 	if err != nil {
 		return
 	}
+
 	for _, f := range files {
 		fn := f.Name()
 		if f.IsDir() && incl[fn] {
 			repo = append(repo, fn)
 		}
 	}
+
 	return
 }
 
@@ -162,6 +183,7 @@ func getPackages(base, extension string, incl map[string]bool) (packages []Packa
 	if repoNames, err = getRepoNames(base, incl); err != nil {
 		log.Fatalln(err)
 	}
+
 	for _, rn := range repoNames {
 		if r, e := parseRepoFile(base, rn, extension); e == nil {
 			packages = append(packages, r...)
@@ -169,11 +191,13 @@ func getPackages(base, extension string, incl map[string]bool) (packages []Packa
 			log.Debugf("Failed to load repo [%s]: %s", rn, e)
 		}
 	}
+
 	return
 }
 
 func findAllPackages() (packages []Package) {
 	SearchAll(&packages, "Flag")
+
 	return
 }
 
@@ -181,12 +205,15 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 	if len(oldPackages) == 0 {
 		return newPackages, nil, nil, nil
 	}
+
 	mp, mr := make(map[string]Package), make(map[string][]string)
 	done := make(map[uint]bool)
+
 	for _, p := range oldPackages {
 		mp[p.RepoName()] = p
 		mr[p.Name] = append(mr[p.Name], p.Repository)
 	}
+
 	for _, p := range newPackages {
 		op, ok := mp[p.RepoName()]
 		if ok {
@@ -202,6 +229,7 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 				removeFlags = append(removeFlags, op.Flag)
 			}
 		}
+
 		if p.GitID == 0 {
 			for _, r := range mr[p.Name] {
 				if r == p.Repository {
@@ -214,12 +242,14 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 				}
 			}
 		}
+
 		if !ok {
 			add = append(add, p)
 		} else if p.Version != op.Version || p.GitID != op.GitID || p.Md5Sum != op.Md5Sum || p.Sha256Sum != op.Sha256Sum {
 			update = append(update, p)
 		}
 	}
+
 	for _, p := range oldPackages {
 		if !done[p.ID] {
 			var rp Package
@@ -227,6 +257,7 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 			remove = append(remove, rp)
 		}
 	}
+
 	return
 }
 
@@ -243,6 +274,7 @@ func updatePackages(add, update, remove []Package, removeFlags []Flag) func(*gor
 				}
 			}
 		}
+
 		if len(update) > 0 {
 			for i := 0; i < len(update); i += 100 {
 				u := update[i:]
@@ -254,6 +286,7 @@ func updatePackages(add, update, remove []Package, removeFlags []Flag) func(*gor
 				}
 			}
 		}
+
 		if len(removeFlags) > 0 {
 			for i := 0; i < 100; i += 100 {
 				r := removeFlags[i:]
@@ -265,9 +298,11 @@ func updatePackages(add, update, remove []Package, removeFlags []Flag) func(*gor
 				}
 			}
 		}
+
 		if len(add) > 0 {
 			return tx.CreateInBatches(&add, 100).Error
 		}
+
 		return nil
 	}
 }
@@ -290,11 +325,13 @@ func searchGit(base string, p *Package) bool {
 		log.Debugf("\033[1;31mFailed to load %s: %s\033[m\n", fp, err)
 		return false
 	}
+
 	for {
 		hdr, err := tf.Next()
 		if err != nil {
 			break
 		}
+
 		if hdr.Name == ".PKGINFO" {
 			var buf bytes.Buffer
 			if _, err = io.Copy(&buf, tf); err == nil {
@@ -306,6 +343,7 @@ func searchGit(base string, p *Package) bool {
 			break
 		}
 	}
+
 	return false
 }
 
@@ -323,6 +361,7 @@ func createFlag(p *Package) func(*gorm.DB) error {
 		if err := tx.Create(&p.Flag).Error; err != nil {
 			return err
 		}
+
 		p.FlagID = p.Flag.ID
 		return tx.Model(p).Update("git_id", p.FlagID).Error
 	}
@@ -333,10 +372,12 @@ func deleteFlags(flags []Flag) func(*gorm.DB) error {
 		if len(flags) == 0 {
 			return nil
 		}
+
 		ids := make([]uint, len(flags))
 		for i, f := range flags {
 			ids[i] = f.ID
 		}
+
 		if err := tx.Model(&Package{}).Where("flag_id IN ?", ids).Update("flag_id", 0).Error; err != nil {
 			return err
 		}

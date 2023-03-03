@@ -135,6 +135,7 @@ func init() {
 
 func printUsage() {
 	w := os.Stderr
+
 	fmt.Fprintf(w, "\033[1;31mUsage: %s (subcommand) [args...]\033[m\n", os.Args[0])
 	fmt.Fprint(w, help)
 }
@@ -147,6 +148,7 @@ func main() {
 			return
 		}
 	}
+
 	printUsage()
 	os.Exit(1)
 }
