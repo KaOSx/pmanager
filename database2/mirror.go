@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func openPacmanConf(uri string) (repos []string, err error) {
+func readPacmanConf(uri string) (repos []string, err error) {
 	var data io.Reader
 	if data, err = resource.Open(uri); err != nil {
 		return
@@ -118,9 +118,9 @@ func checkMd5(mirror *Mirror, mainMirror Mirror) {
 	}
 }
 
-func getMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []Country, err error) {
+func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []Country, err error) {
 	var repos []string
-	if repos, err = openPacmanConf(pacmanConf); err != nil {
+	if repos, err = readPacmanConf(pacmanConf); err != nil {
 		return
 	}
 
