@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"pmanager/conf"
-	"pmanager/database"
+	database "pmanager/database2"
 	"pmanager/log"
 	"pmanager/util/conv"
 	"pmanager/util/mail"

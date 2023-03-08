@@ -81,9 +81,8 @@ func (c *configuration) slice(key string) []string {
 
 func (c *configuration) fusion(c2 *configuration) (modified bool) {
 	for k, v := range c.data {
-		if v2, exists := c2.data[k]; !exists {
+		if v2, exists := c2.data[k]; exists && v != v2 {
 			modified = true
-		} else if v != v2 {
 			c.data[k] = v2
 			n := c.line[k]
 			line := c.raw[n]

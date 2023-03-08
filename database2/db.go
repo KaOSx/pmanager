@@ -28,7 +28,8 @@ func newDb(connector gorm.Dialector, tables ...any) (dbl *database, err error) {
 		return
 	}
 
-	dbl, err = &database{DB: db}, dbl.AutoMigrate(tables...)
+	dbl = &database{DB: db}
+	err = dbl.AutoMigrate(tables...)
 
 	return
 }

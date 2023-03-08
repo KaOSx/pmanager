@@ -64,9 +64,8 @@ func getRepoMd5(mirrorName string, repo *Repo, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	url := fmt.Sprintf("%s%s/%s.db.tar.gz", mirrorName, repo.Name, repo.Name)
-	defer log.Debugf("End check md5 from %s\n", url)
-
 	log.Debugf("Begin check md5 from %s\n", url)
+	defer log.Debugf("End check md5 from %s\n", url)
 
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
@@ -76,7 +75,7 @@ func getRepoMd5(mirrorName string, repo *Repo, wg *sync.WaitGroup) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
+		err = fmt.Errorf("[%d] %s", resp.StatusCode, resp.Status)
 		log.Debugf("\033[1;31mfailed to check md5 from %s: %s\n\033[m", url, err)
 		return
 	}
@@ -84,27 +83,31 @@ func getRepoMd5(mirrorName string, repo *Repo, wg *sync.WaitGroup) {
 	var b []byte
 	if b, err = io.ReadAll(resp.Body); err == nil {
 		repo.md5 = fmt.Sprintf("%x", md5.Sum(b))
-		log.Debugf("check md5 from %s successful\n", url)
+		log.Debugf("\033[1;32mcheck md5 from %s successful\n\033[m", url)
 	} else {
 		err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
 		log.Debugf("\033[1;31mfailed to parse md5 from %s: %s\n\033[m", url, err)
 	}
-
-	return
 }
 
 func getMirrorMd5(mirror *Mirror, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
+	log.Debugf("Begin mirror %s\n", mirror.Name)
+	defer log.Debugf("End mirror %s\n", mirror.Name)
+
 	if mirror.Online = resource.Exists(mirror.Name); !mirror.Online {
+		log.Debugf("\033[1;31mMirror %s is not online\n\033[m", mirror.Name)
 		return
 	}
 
-	wg.Add(len(mirror.Repos))
+	var wg2 sync.WaitGroup
+	wg2.Add(len(mirror.Repos))
 	for i := range mirror.Repos {
-		go getRepoMd5(mirror.Name, &mirror.Repos[i], wg)
+		go getRepoMd5(mirror.Name, &mirror.Repos[i], &wg2)
 	}
+	wg2.Wait()
 }
 
 func checkMd5(mirror *Mirror, mainMirror Mirror) {
@@ -171,7 +174,7 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 	}
 
 	sort.Slice(ptrs, func(i, j int) bool {
-		c1, c2 := countries[i].Name, countries[j].Name
+		c1, c2 := ptrs[i].Name, ptrs[j].Name
 		if strings.HasPrefix(c1, "Default") {
 			return true
 		}
@@ -181,6 +184,8 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 		return c1 < c2
 	})
 
+	wg.Wait()
+
 	log.Debugln("Found mirrors:")
 	for _, c := range ptrs {
 		log.Debugln(" *", c.Name)
@@ -188,8 +193,6 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 			log.Debugln("    →", m.Name)
 		}
 	}
-
-	wg.Wait()
 
 	for _, m := range mirrors {
 		checkMd5(m, *mainMirror)

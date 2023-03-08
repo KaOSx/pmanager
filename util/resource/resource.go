@@ -19,7 +19,11 @@ func IsPath(uri string) bool {
 }
 
 func isAvailableURL(uri string) bool {
-	resp, err := http.Head(uri)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Head(uri)
 
 	return err == nil && resp.StatusCode == http.StatusOK
 }
