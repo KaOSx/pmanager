@@ -66,10 +66,11 @@ type (
 
 	Repo struct {
 		gorm.Model
-		Name     string
-		Sync     bool
-		MirrorID uint
-		md5      string `gorm:"-"`
+		Name       string
+		Sync       bool
+		MirrorID   uint
+		md5        string `gorm:"-"`
+		mirrorName string `gorm:"-"`
 	}
 
 	Mirror struct {

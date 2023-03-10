@@ -43,11 +43,11 @@ func readPacmanConf(uri string) (repos []string, err error) {
 	return append(repos, "build"), nil
 }
 
-func newRepos(repos []string) (out []Repo) {
+func newRepos(repos []string, mirrorName string) (out []Repo) {
 	out = make([]Repo, len(repos))
 
 	for i, r := range repos {
-		out[i].Name = r
+		out[i].Name, out[i].mirrorName = r, mirrorName
 	}
 
 	return out
@@ -55,22 +55,37 @@ func newRepos(repos []string) (out []Repo) {
 
 func newMirror(name string, repos []string) (mirror Mirror) {
 	mirror.Name = strings.Replace(name, "$repo", "", 1)
-	mirror.Repos = newRepos(repos)
+	mirror.Repos = newRepos(repos, mirror.Name)
 
 	return
 }
 
-func getRepoMd5(mirrorName string, repo *Repo, wg *sync.WaitGroup) {
+func checkMirrorIsOnline(mirror *Mirror, repos chan *Repo, mirrors chan *Mirror, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	url := fmt.Sprintf("%s%s/%s.db.tar.gz", mirrorName, repo.Name, repo.Name)
-	log.Debugf("Begin check md5 from %s\n", url)
-	defer log.Debugf("End check md5 from %s\n", url)
+	if mirror.Online = resource.Exists(mirror.Name); !mirror.Online {
+		log.Debugf("\033[1;31mMirror %s is not online\n\033[m", mirror.Name)
+		return
+	}
+
+	log.Debugf("\033[1;32mMirror %s is online\n\033[m", mirror.Name)
+
+	for i := range mirror.Repos {
+		repos <- &mirror.Repos[i]
+	}
+	mirrors <- mirror
+}
+
+func getRepoMd5(repo *Repo, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	url := fmt.Sprintf("%s%s/%s.db.tar.gz", repo.mirrorName, repo.Name, repo.Name)
 
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 
 	if err != nil {
+		log.Debugf("\033[1;31mFailed to get %s: %s\n[033m", url, err)
 		return
 	}
 
@@ -81,36 +96,16 @@ func getRepoMd5(mirrorName string, repo *Repo, wg *sync.WaitGroup) {
 	}
 
 	var b []byte
-	if b, err = io.ReadAll(resp.Body); err == nil {
-		repo.md5 = fmt.Sprintf("%x", md5.Sum(b))
-		log.Debugf("\033[1;32mcheck md5 from %s successful\n\033[m", url)
-	} else {
-		err = fmt.Errorf("[%i] %s", resp.StatusCode, resp.Status)
+	if b, err = io.ReadAll(resp.Body); err != nil {
 		log.Debugf("\033[1;31mfailed to parse md5 from %s: %s\n\033[m", url, err)
 	}
+	repo.md5 = fmt.Sprintf("%x", md5.Sum(b))
+	log.Debugf("\033[1;32mcheck md5 from %s successful\n\033[m", url)
 }
 
-func getMirrorMd5(mirror *Mirror, wg *sync.WaitGroup) {
-	wg.Add(1)
+func checkMirrorMd5(mirror, mainMirror *Mirror, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	log.Debugf("Begin mirror %s\n", mirror.Name)
-	defer log.Debugf("End mirror %s\n", mirror.Name)
-
-	if mirror.Online = resource.Exists(mirror.Name); !mirror.Online {
-		log.Debugf("\033[1;31mMirror %s is not online\n\033[m", mirror.Name)
-		return
-	}
-
-	var wg2 sync.WaitGroup
-	wg2.Add(len(mirror.Repos))
-	for i := range mirror.Repos {
-		go getRepoMd5(mirror.Name, &mirror.Repos[i], &wg2)
-	}
-	wg2.Wait()
-}
-
-func checkMd5(mirror *Mirror, mainMirror Mirror) {
 	if !mirror.Online {
 		return
 	}
@@ -118,17 +113,28 @@ func checkMd5(mirror *Mirror, mainMirror Mirror) {
 	for i := range mirror.Repos {
 		repo := &mirror.Repos[i]
 		repo.Sync = repo.md5 != "" && repo.md5 == mainMirror.Repos[i].md5
+		if repo.Sync {
+			log.Debugf("\033[1;32m%s:%s is synced\n\033[m", repo.mirrorName, repo.Name)
+		} else {
+			log.Debugf("\033[1;31m%s:%s is not synced\n\033[m", repo.mirrorName, repo.Name)
+		}
 	}
 }
 
+func sendClose[T any](wg *sync.WaitGroup, c chan T, done chan bool) {
+	wg.Wait()
+	close(c)
+	done <- true
+}
+
 func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (countries []Country, err error) {
-	var repos []string
-	if repos, err = readPacmanConf(pacmanConf); err != nil {
+	var repoNames []string
+	if repoNames, err = readPacmanConf(pacmanConf); err != nil {
 		return
 	}
 
 	log.Debugln("Found repos:")
-	for _, r := range repos {
+	for _, r := range repoNames {
 		log.Debugln(" -", r)
 	}
 
@@ -137,44 +143,66 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 		return
 	}
 
-	sc := bufio.NewScanner(data)
 	var (
-		country    *Country
-		ptrs       []*Country
-		mirrors    []*Mirror
-		mainMirror *Mirror
-		wg         sync.WaitGroup
+		sc                           = bufio.NewScanner(data)
+		repos                        = make(chan *Repo, bufferSize)
+		mirrors                      = make(chan *Mirror, bufferSize)
+		done                         = make(chan bool, 2)
+		country                      *Country
+		mainMirror                   *Mirror
+		wgOnline, wgRepos, wgMirrors sync.WaitGroup
 	)
 
-	for sc.Scan() {
-		line := sc.Text()
-		if i := strings.Index(line, "Server ="); i >= 0 {
-			mirror := newMirror(strings.TrimSpace(line[i+8:]), repos)
-			country.Mirrors = append(country.Mirrors, mirror)
-			j := len(country.Mirrors) - 1
-			ptr := &(country.Mirrors[j])
-			go getMirrorMd5(ptr, &wg)
-			if ptr.Name == mainMirrorName {
-				mainMirror = ptr
-			}
-			mirrors = append(mirrors, ptr)
-		} else if strings.HasPrefix(line, "#") {
-			if country == nil {
-				country = new(Country)
-			} else if len(country.Mirrors) > 0 {
-				ptrs = append(ptrs, country)
-				country = new(Country)
-			}
-			country.Name = strings.TrimSpace(line[1:])
+	addCountry := func() {
+		if country != nil && len(country.Mirrors) > 0 {
+			countries = append(countries, *country)
 		}
 	}
 
-	if country != nil && len(country.Mirrors) > 0 {
-		ptrs = append(ptrs, country)
-	}
+	go func() {
+		for repo := range repos {
+			wgRepos.Add(1)
+			go getRepoMd5(repo, &wgRepos)
+		}
+		done <- true
+	}()
 
-	sort.Slice(ptrs, func(i, j int) bool {
-		c1, c2 := ptrs[i].Name, ptrs[j].Name
+	for sc.Scan() {
+		line := sc.Text()
+		i := strings.Index(line, "Server = ")
+
+		if i >= 0 {
+			j := len(country.Mirrors)
+			country.Mirrors = append(country.Mirrors, newMirror(strings.TrimSpace(line[i+8:]), repoNames))
+			mirror := &country.Mirrors[j]
+			if mirror.Name == mainMirrorName {
+				mainMirror = mirror
+			}
+			wgOnline.Add(1)
+			go checkMirrorIsOnline(mirror, repos, mirrors, &wgOnline)
+		} else if strings.HasPrefix(line, "#") {
+			addCountry()
+			country = new(Country)
+			country.Name = strings.TrimSpace(line[1:])
+		}
+	}
+	addCountry()
+
+	wgOnline.Wait()
+
+	go sendClose(&wgRepos, repos, done)
+	<-done
+	<-done
+
+	close(mirrors)
+	for mirror := range mirrors {
+		wgMirrors.Add(1)
+		go checkMirrorMd5(mirror, mainMirror, &wgMirrors)
+	}
+	wgMirrors.Wait()
+
+	sort.Slice(countries, func(i, j int) bool {
+		c1, c2 := countries[i].Name, countries[j].Name
 		if strings.HasPrefix(c1, "Default") {
 			return true
 		}
@@ -184,23 +212,12 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 		return c1 < c2
 	})
 
-	wg.Wait()
-
 	log.Debugln("Found mirrors:")
-	for _, c := range ptrs {
+	for _, c := range countries {
 		log.Debugln(" *", c.Name)
 		for _, m := range c.Mirrors {
 			log.Debugln("    →", m.Name)
 		}
-	}
-
-	for _, m := range mirrors {
-		checkMd5(m, *mainMirror)
-	}
-
-	countries = make([]Country, len(ptrs))
-	for i, c := range ptrs {
-		countries[i] = *c
 	}
 
 	return

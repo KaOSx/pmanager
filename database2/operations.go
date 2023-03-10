@@ -50,11 +50,7 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]
 }
 
 func UpdatePackages(base, extension string, includes, excludes []string) map[string]int {
-	packages, err := searchPackageUpdate(base, extension, getIncludes(includes, excludes))
-	if err != nil {
-		log.Errorf("Failed to get packages: %s\n", err)
-		return nil
-	}
+	packages := searchPackageUpdate(base, extension, getIncludes(includes, excludes))
 
 	oldPackages := findAllPackages()
 	add, update, remove, removeFlags := unzipPackages(oldPackages, packages)
@@ -62,7 +58,7 @@ func UpdatePackages(base, extension string, includes, excludes []string) map[str
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 
-	if err = dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
+	if err := dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
 		log.Errorf("Failed to update packages database: %s\n", err)
 		return nil
 	}
@@ -100,14 +96,8 @@ func UpdateAll(
 	}()
 
 	go func() {
-		var packages, oldPackages []Package
-
-		if packages, err = searchPackageUpdate(base, extension, getIncludes(includes, excludes)); err != nil {
-			log.Errorf("Failed to get packages: %s\n", err)
-			return
-		}
-
-		oldPackages = findAllPackages()
+		packages := searchPackageUpdate(base, extension, getIncludes(includes, excludes))
+		oldPackages := findAllPackages()
 		add, update, remove, removeFlags = unzipPackages(oldPackages, packages)
 
 		done <- true
