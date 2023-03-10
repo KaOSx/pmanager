@@ -3,7 +3,7 @@ Packages viewer &amp; Mirrors status used by KaOS
 
 ## Installation
 
-Required : Go ≥ 1.17, sqlite3
+Required : Go ≥ 1.19, sqlite3
 
 `go build -o pmanager pmanager.go`
 
