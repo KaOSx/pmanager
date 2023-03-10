@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	TimeoutInSeconds time.Duration = 20
+	TimeoutInSeconds time.Duration = 10
 )
 
 func IsURL(uri string) bool {
