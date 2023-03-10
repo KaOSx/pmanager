@@ -143,6 +143,18 @@ func printUsage() {
 func main() {
 	if len(os.Args) > 1 {
 		action, ok := actions[os.Args[1]]
+		for i, arg := range os.Args[2:] {
+			switch arg {
+			case "--debug":
+				log.Debug = true
+			case "--no-debug":
+				log.Debug = false
+			case "--log":
+				if i < len(os.Args)-1 {
+					log.Init(os.Args[i+1])
+				}
+			}
+		}
 		if ok {
 			action()
 			return
