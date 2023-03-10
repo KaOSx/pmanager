@@ -11,10 +11,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var (
-	dbsingleton *database
-)
-
+// database is a representation of a database in Go.
+// It is safe-thread for reading and writing.
 type database struct {
 	sync.Mutex
 	*gorm.DB
@@ -22,6 +20,7 @@ type database struct {
 
 func newDb(connector gorm.Dialector, tables ...any) (dbl *database, err error) {
 	var db *gorm.DB
+
 	db, err = gorm.Open(connector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 	})
@@ -35,6 +34,8 @@ func newDb(connector gorm.Dialector, tables ...any) (dbl *database, err error) {
 	return
 }
 
+// SqlSlice is a custom type of field to
+// store slice informations in the database.
 type SqlSlice []string
 
 func (sl *SqlSlice) Scan(v any) error {
@@ -80,16 +81,19 @@ func (sl1 SqlSlice) Equal(sl2 SqlSlice) bool {
 	return true
 }
 
+// Filter is a structure
+// to represent the clause WHERE
+// of an SQL request.
 type Filter struct {
 	field     string
 	operation string
 	value     any
 }
 
-func (f Filter) String() string {
-	return fmt.Sprintf("%s %s ?", f.field, f.operation)
-}
-
+// NewFilter creates a new filter clause.
+// - field : name of the field to apply the filter
+// - operation : comparison operator between the field and the value
+// - value : value to compare with the field
 func NewFilter(field, operation string, value any) Filter {
 	return Filter{
 		field:     field,
@@ -98,11 +102,21 @@ func NewFilter(field, operation string, value any) Filter {
 	}
 }
 
+func (f Filter) String() string {
+	return fmt.Sprintf("%s %s ?", f.field, f.operation)
+}
+
+// Sort is a structure
+// to represent the clause ORDER BY
+// of an SQL request.
 type Sort struct {
 	field string
 	desc  bool
 }
 
+// NewSort creates a new sort clause.
+// - field : name of the field to sort
+// - desc : if true, sort is descending, and ascending otherwise
 func NewSort(field string, desc bool) Sort {
 	return Sort{
 		field: field,
@@ -119,6 +133,17 @@ func (s Sort) String() string {
 	return fmt.Sprintf("%s %s", s.field, direction)
 }
 
+// Pagination is a structure
+// to store the information the paginated result.
+type Pagination struct {
+	Total   int64 // Total of elements who match the filter request
+	Limit   int64 // Number of elements per page
+	Offset  int64 // First element position to display in the result
+	Current int64 // Current page of the result
+	Last    int64 // Number of pages of the result
+}
+
+// Request is a structure to prepare an SQL request.
 type Request struct {
 	filters []Filter
 	sorts   []Sort
@@ -126,12 +151,67 @@ type Request struct {
 	off     int64
 }
 
-type Pagination struct {
-	Total   int64
-	Limit   int64
-	Offset  int64
-	Current int64
-	Last    int64
+// NewRequest returns a new prepared request.
+//   - filters : list of filters to apply
+//   - sorts : list of order criterias to apply
+//   - pageLimit (optionnal) : if set, first number gives the page of the result (default 1)
+//     and second number gives the limit of the results (default 50)
+func NewRequest(filters []Filter, sorts []Sort, pageLimit ...int64) *Request {
+	r := Request{
+		filters: filters,
+		sorts:   sorts,
+		lim:     -1,
+		off:     -1,
+	}
+
+	if len(pageLimit) > 0 {
+		limit := int64(50)
+		if len(pageLimit) > 1 {
+			limit = pageLimit[1]
+		}
+		page := pageLimit[0]
+		if limit > 0 {
+			r.SetLimit(limit).SetPage(page)
+		}
+	}
+
+	return &r
+}
+
+func NewFilterRequest(filters ...Filter) *Request {
+	return NewRequest(filters, nil)
+}
+
+func NewOrderRequest(sorts ...Sort) *Request {
+	return NewRequest(nil, sorts)
+}
+
+func (r *Request) AddFilter(field, operation string, value any) *Request {
+	r.filters = append(r.filters, NewFilter(field, operation, value))
+
+	return r
+}
+
+func (r *Request) AddSort(field string, desc bool) *Request {
+	r.sorts = append(r.sorts, NewSort(field, desc))
+
+	return r
+}
+
+func (r *Request) SetLimit(limit int64) *Request {
+	r.lim = limit
+
+	return r
+}
+
+func (r *Request) SetPage(page int64) *Request {
+	if r.lim > 0 {
+		if page > 0 {
+			r.off = (page - 1) * r.lim
+		}
+	}
+
+	return r
 }
 
 func (r *Request) where() func(*gorm.DB) *gorm.DB {
@@ -202,62 +282,4 @@ func (r *Request) paginate(total int64) (p Pagination) {
 	p.Last = (p.Total-1)/p.Limit + 1
 
 	return
-}
-
-func NewRequest(filters []Filter, sorts []Sort, pageLimit ...int64) *Request {
-	r := Request{
-		filters: filters,
-		sorts:   sorts,
-		lim:     -1,
-		off:     -1,
-	}
-
-	if len(pageLimit) > 0 {
-		limit := int64(50)
-		if len(pageLimit) > 1 {
-			limit = pageLimit[1]
-		}
-		page := pageLimit[0]
-		if limit > 0 {
-			r.SetLimit(limit).SetPage(page)
-		}
-	}
-
-	return &r
-}
-
-func NewFilterRequest(filters ...Filter) *Request {
-	return NewRequest(filters, nil)
-}
-
-func NewOrderRequest(sorts ...Sort) *Request {
-	return NewRequest(nil, sorts)
-}
-
-func (r *Request) AddFilter(field, operation string, value any) *Request {
-	r.filters = append(r.filters, NewFilter(field, operation, value))
-
-	return r
-}
-
-func (r *Request) AddSort(field string, desc bool) *Request {
-	r.sorts = append(r.sorts, NewSort(field, desc))
-
-	return r
-}
-
-func (r *Request) SetLimit(limit int64) *Request {
-	r.lim = limit
-
-	return r
-}
-
-func (r *Request) SetPage(page int64) *Request {
-	if r.lim > 0 {
-		if page > 0 {
-			r.off = (page - 1) * r.lim
-		}
-	}
-
-	return r
 }

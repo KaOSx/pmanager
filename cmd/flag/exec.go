@@ -2,7 +2,7 @@ package flag
 
 import (
 	"fmt"
-	database "pmanager/database2"
+	"pmanager/database"
 	"pmanager/util/shell"
 	"time"
 )

@@ -2,7 +2,7 @@ package update
 
 import (
 	"pmanager/conf"
-	database "pmanager/database2"
+	"pmanager/database"
 	"pmanager/util/resource"
 )
 

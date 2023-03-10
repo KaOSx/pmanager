@@ -3,17 +3,31 @@ package database
 import (
 	"fmt"
 	"pmanager/log"
-	"reflect"
-	"sync"
 
 	"gorm.io/gorm"
 )
 
-func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (out map[string]int) {
-	countries, err := getMirrors(pacmanConf, pacmanMirrors, mainMirrorName)
+func findAllPackages() (packages []Package) {
+	SearchAll(&packages, "Flag")
+
+	return
+}
+
+func prScope(pr []string) []func(*gorm.DB) *gorm.DB {
+	out := make([]func(*gorm.DB) *gorm.DB, len(pr))
+
+	for i, p := range pr {
+		out[i] = func(sc *gorm.DB) *gorm.DB { return sc.Preload(p) }
+	}
+
+	return out
+}
+
+func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) map[string]int {
+	countries, err := searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName)
 	if err != nil {
 		log.Errorf("Failed to get mirrors: %s\n", err)
-		return
+		return nil
 	}
 
 	dbsingleton.Lock()
@@ -21,7 +35,7 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (out map[st
 
 	if err = dbsingleton.Transaction(updateMirrors(countries)); err != nil {
 		log.Errorf("Failed to update mirrors database: %s\n", err)
-		return
+		return nil
 	}
 
 	c, m := len(countries), 0
@@ -35,21 +49,19 @@ func UpdateMirrors(pacmanConf, pacmanMirrors, mainMirrorName string) (out map[st
 	}
 }
 
-func UpdatePackages(base, extension string, includes, excludes []string) (out map[string]int) {
-	packages, err := getPackages(base, extension, getIncludes(includes, excludes))
-	if err != nil {
-		log.Errorf("Failed to get packages: %s\n", err)
-		return
-	}
+func UpdatePackages(base, extension string, includes, excludes []string) map[string]int {
+	packages := searchPackageUpdate(base, extension, getIncludes(includes, excludes))
 
 	oldPackages := findAllPackages()
 	add, update, remove, removeFlags := unzipPackages(oldPackages, packages)
+	log.Debugln("add:", len(add), "; update:", len(update), "; remove:", len(remove))
+
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 
-	if err = dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
+	if err := dbsingleton.Transaction(updatePackages(add, update, remove, removeFlags)); err != nil {
 		log.Errorf("Failed to update packages database: %s\n", err)
-		return
+		return nil
 	}
 
 	return map[string]int{
@@ -69,31 +81,32 @@ func UpdateAll(
 	includes,
 	excludes []string,
 ) map[string]int {
-	var wg sync.WaitGroup
-	var err error
-	var countries []Country
-	var add, update, remove []Package
-	var removeFlags []Flag
+	var (
+		done                = make(chan bool, 2)
+		err                 error
+		countries           []Country
+		add, update, remove []Package
+		removeFlags         []Flag
+	)
 
-	wg.Add(2)
 	go func() {
-		defer wg.Done()
-		if countries, err = getMirrors(pacmanConf, pacmanMirrors, mainMirrorName); err != nil {
+		if countries, err = searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName); err != nil {
 			log.Errorf("Failed to get mirrors: %s\n", err)
 		}
+		done <- true
 	}()
 
 	go func() {
-		defer wg.Done()
-		var packages, oldPackages []Package
-		if packages, err = getPackages(base, extension, getIncludes(includes, excludes)); err != nil {
-			log.Errorf("Failed to get packages: %s\n", err)
-			return
-		}
-		oldPackages = findAllPackages()
+		packages := searchPackageUpdate(base, extension, getIncludes(includes, excludes))
+		oldPackages := findAllPackages()
 		add, update, remove, removeFlags = unzipPackages(oldPackages, packages)
+
+		done <- true
 	}()
-	wg.Wait()
+
+	for i := 0; i < 2; i++ {
+		<-done
+	}
 
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
@@ -122,16 +135,6 @@ func UpdateAll(
 		"packages_removed": len(remove),
 		"flags_removed":    len(removeFlags),
 	}
-}
-
-func prScope(pr []string) []func(*gorm.DB) *gorm.DB {
-	out := make([]func(*gorm.DB) *gorm.DB, len(pr))
-
-	for i, p := range pr {
-		out[i] = func(sc *gorm.DB) *gorm.DB { return sc.Preload(p) }
-	}
-
-	return out
 }
 
 func First(e any, r *Request, preload ...string) bool {
@@ -164,27 +167,18 @@ func SearchAll(e any, preload ...string) bool {
 		Find(e).Error == nil
 }
 
-func Paginate(e any, r *Request, preload ...string) (p Pagination, ok bool) {
-	t := reflect.TypeOf(e)
-	if t.Kind() != reflect.Ptr {
-		log.Errorln("Not a pointer")
-		return
-	}
-
-	t = t.Elem()
-	if t.Kind() != reflect.Slice {
-		log.Errorln("Not a pointer of slice")
-		return
-	}
-	v := reflect.New(t.Elem()).Interface()
-
+func Paginate[T any](e *[]T, r *Request, preload ...string) (p Pagination, ok bool) {
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()
 
-	w, o := r.where(), r.order()
-	var c int64
+	var (
+		w = r.where()
+		o = r.order()
+		c int64
+		v T
+	)
 
-	if err := dbsingleton.Model(v).Scopes(w, o).Count(&c).Error; err != nil {
+	if err := dbsingleton.Model(&v).Scopes(w, o).Count(&c).Error; err != nil {
 		log.Debugf("Failed to paginate: %s\n", err)
 		return
 	}
@@ -221,9 +215,10 @@ func GetPackage(p *Package, r *Request, base string) (ok bool) {
 	}
 
 	if p.GitID == 0 {
-		if searchGit(base, p) {
+		if searchGitInfo(base, p) {
 			dbsingleton.Lock()
 			defer dbsingleton.Unlock()
+
 			dbsingleton.Transaction(updateGit(&p.Git, p.Name))
 			p.GitID = p.Git.ID
 		}

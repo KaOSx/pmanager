@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/mail"
 	"pmanager/conf"
-	database "pmanager/database2"
+	"pmanager/database"
 	"pmanager/log"
 	"pmanager/util/conv"
 	"strconv"
