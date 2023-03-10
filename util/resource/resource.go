@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	TimeoutInSeconds time.Duration = 20
+)
+
 func IsURL(uri string) bool {
 	return strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://")
 }
@@ -20,7 +24,7 @@ func IsPath(uri string) bool {
 
 func isAvailableURL(uri string) bool {
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 20 * time.Second,
 	}
 
 	resp, err := client.Head(uri)
