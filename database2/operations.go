@@ -54,6 +54,7 @@ func UpdatePackages(base, extension string, includes, excludes []string) map[str
 
 	oldPackages := findAllPackages()
 	add, update, remove, removeFlags := unzipPackages(oldPackages, packages)
+	log.Debugln("add:", len(add), "; update:", len(update), "; remove:", len(remove))
 
 	dbsingleton.Lock()
 	defer dbsingleton.Unlock()

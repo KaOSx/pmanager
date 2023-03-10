@@ -280,8 +280,10 @@ func searchPackageUpdate(base, extension string, incl map[string]bool) (packages
 	}
 
 	for i := range packages {
-		if f, ok := mfiles[packages[i].RepoName()]; ok {
-			packages[i].Files = f
+		p := &packages[i]
+		fn := p.FullName()
+		if f, ok := mfiles[fn]; ok {
+			p.Files = f
 		}
 	}
 
@@ -359,7 +361,7 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 
 		if !ok {
 			add = append(add, np)
-		} else if np.Version != op.Version || np.GitID != op.GitID || np.Md5Sum != op.Md5Sum || np.Sha256Sum != op.Sha256Sum {
+		} else {
 			update = append(update, np)
 		}
 	}
