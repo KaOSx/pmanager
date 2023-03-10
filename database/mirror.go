@@ -114,9 +114,9 @@ func checkMirrorMd5(mirror, mainMirror *Mirror, wg *sync.WaitGroup) {
 		repo := &mirror.Repos[i]
 		repo.Sync = repo.md5 != "" && repo.md5 == mainMirror.Repos[i].md5
 		if repo.Sync {
-			log.Debugf("\033[1;32m%s:%s is synced\n\033[m", repo.mirrorName, repo.Name)
+			log.Debugf("\033[1;32m%s%s is synced\n\033[m", repo.mirrorName, repo.Name)
 		} else {
-			log.Debugf("\033[1;31m%s:%s is not synced\n\033[m", repo.mirrorName, repo.Name)
+			log.Debugf("\033[1;31m%s%s is not synced\n\033[m", repo.mirrorName, repo.Name)
 		}
 	}
 }
@@ -155,6 +155,14 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 
 	addCountry := func() {
 		if country != nil && len(country.Mirrors) > 0 {
+			for i := range country.Mirrors {
+				mirror := &country.Mirrors[i]
+				if mirror.Name == mainMirrorName {
+					mainMirror = mirror
+				}
+				wgOnline.Add(1)
+				go checkMirrorIsOnline(mirror, repos, mirrors, &wgOnline)
+			}
 			countries = append(countries, *country)
 		}
 	}
@@ -172,14 +180,7 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 		i := strings.Index(line, "Server = ")
 
 		if i >= 0 {
-			j := len(country.Mirrors)
 			country.Mirrors = append(country.Mirrors, newMirror(strings.TrimSpace(line[i+8:]), repoNames))
-			mirror := &country.Mirrors[j]
-			if mirror.Name == mainMirrorName {
-				mainMirror = mirror
-			}
-			wgOnline.Add(1)
-			go checkMirrorIsOnline(mirror, repos, mirrors, &wgOnline)
 		} else if strings.HasPrefix(line, "#") {
 			addCountry()
 			country = new(Country)
@@ -216,7 +217,11 @@ func searchMirrorUpdate(pacmanConf, pacmanMirrors, mainMirrorName string) (count
 	for _, c := range countries {
 		log.Debugln(" *", c.Name)
 		for _, m := range c.Mirrors {
-			log.Debugln("    →", m.Name)
+			online := "\033[1;32monline\033[m"
+			if !m.Online {
+				online = "\033[1;31moffline\033[m"
+			}
+			log.Debugf("    → %s (%s)\n", m.Name, online)
 		}
 	}
 
