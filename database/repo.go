@@ -369,7 +369,7 @@ func unzipPackages(oldPackages, newPackages []Package) (add, update, remove []Pa
 	for _, p := range oldPackages {
 		if !done[p.ID] {
 			var rp Package
-			p.ID = p.ID
+			rp.ID = p.ID
 			remove = append(remove, rp)
 		}
 	}
