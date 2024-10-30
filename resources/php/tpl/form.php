@@ -17,7 +17,7 @@
                     <input name="repo" type="hidden" value="<?= $form['repo'] ?>">
                     <input name="exact" type="hidden" value="<?= $form['exact'] ?>">
                     <input name="search" type="text" size="20" value="<?= $form['search'] ?>">
-                    <button type="submit">Search</button>
+                    <button class="btn" type="submit">Search</button>
                 </form>
             </td>
         </tr>

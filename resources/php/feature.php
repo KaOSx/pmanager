@@ -36,7 +36,7 @@ $packages = isset($result['data']) && is_array($result['data']) ? $result['data'
             }
             span {
                 display: block;
-                width: 98%;
+                width: 98%
                 height: 10px;
                 padding: 1px;
             }
@@ -75,7 +75,7 @@ $packages = isset($result['data']) && is_array($result['data']) ? $result['data'
             <?php foreach ($packages as $package): ?>
             <span>
                 <a href="view.php?name=<?= $package['FullName'] ?>" target="blank">
-                    <i class="fa fa-camera"></i>
+                    <i class="fa fa-link"></i>
                     <?= $package['CompleteName']; ?>
                     <span class="b"><?= date('D H:i', strtotime($package['BuildDate'])) ?></span>
                 </a>

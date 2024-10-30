@@ -9,7 +9,7 @@
         </tr>
         <tr>
             <td colspan="5">
-                <a href="index.php"><b><i class="fa fa-bars fa-lg" aria-hidden="true"> [Repositories list]</i></b></a>
+                <a href="index.php"><b><i class="fa fa-list-ol fa-lg" aria-hidden="true"> [Repositories list]</i></b></a>
             </td>
         </tr>
         <?php foreach ($packages as $package): ?>
@@ -22,7 +22,7 @@
             <td align="right"><?= $package['BuildDate'] ?></td>
             <td align="center">
                 <a href="<?= REPOURL.$package['Repository'].'/'.$package['Filename'] ?>">
-                    <i class="fa fa-linux fa-lg" aria-hidden="true"></i>
+                    <i class="fa fa-file-archive-o fa-lg" aria-hidden="true"></i>
                 </a>
             </td>
         </tr>
